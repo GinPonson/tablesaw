@@ -108,7 +108,7 @@ public class CsvReaderTest {
     @Test
     public void testDataTypeDetection() throws Exception {
         InputStream stream = new FileInputStream(new File("../data/bus_stop_test.csv"));
-        ColumnType[] columnTypes = CsvReader.detectColumnTypes(stream, true, ',', false);
+        ColumnType[] columnTypes = CsvReader.detectColumnTypes(stream, true, ',','"','\u0000', false);
         assertTrue(Arrays.equals(bus_types, columnTypes));
     }
 
@@ -120,13 +120,13 @@ public class CsvReaderTest {
                         "SHORT_INT,  // 1     approval    \n" +
                         "CATEGORY,   // 2     who         \n" +
                         "}\n";
-        assertEquals(output, CsvReader.printColumnTypes("../data/BushApproval.csv", true, ','));
+        assertEquals(output, CsvReader.printColumnTypes("../data/BushApproval.csv", true, ',','"','\u0000'));
     }
 
     @Test
     public void testDataTypeDetection2() throws Exception {
         InputStream stream = new FileInputStream(new File("../data/BushApproval.csv"));
-        ColumnType[] columnTypes = CsvReader.detectColumnTypes(stream, true, ',', false);
+        ColumnType[] columnTypes = CsvReader.detectColumnTypes(stream, true, ',','"','\u0000', false);
         assertEquals(LOCAL_DATE, columnTypes[0]);
         assertEquals(SHORT_INT, columnTypes[1]);
         assertEquals(CATEGORY, columnTypes[2]);

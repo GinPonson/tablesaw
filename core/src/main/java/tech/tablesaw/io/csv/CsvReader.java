@@ -157,7 +157,8 @@ public class CsvReader {
             InputStream detectTypesStream = options.reader() != null
                     ? new ByteArrayInputStream(bytes)
                     : new FileInputStream(options.file());
-            types = detectColumnTypes(detectTypesStream, options.header(), options.separator(), options.sample()); 
+            types = detectColumnTypes(detectTypesStream, options.header(), options.separator(),
+                    options.quotechar(), options.escape(), options.sample());
         }
 
         // All other read methods end up here, make sure we don't have leading Unicode BOM
@@ -170,6 +171,8 @@ public class CsvReader {
 
         CSVParser csvParser = new CSVParserBuilder()
                 .withSeparator(options.separator())
+                .withQuoteChar(options.quotechar())
+                .withEscapeChar(options.escape())
                 .build();
 
         try (CSVReader reader = new CSVReaderBuilder(new InputStreamReader(ubis)).withCSVParser(csvParser).build()) {
@@ -294,11 +297,12 @@ public class CsvReader {
      *
      * @throws IOException if file cannot be read
      */
-    private static Table detectedColumnTypes(String csvFileName, boolean header, char delimiter) throws IOException {
+    private static Table detectedColumnTypes(String csvFileName, boolean header, char delimiter,
+                                             char quotechar, char escape) throws IOException {
         File file = new File(csvFileName);
         InputStream stream = new FileInputStream(file);
 
-        ColumnType[] types = detectColumnTypes(stream, header, delimiter, false);
+        ColumnType[] types = detectColumnTypes(stream, header, delimiter, quotechar, escape, false);
         Table t = headerOnly(types, header, delimiter, file);
         return t.structure();
     }
@@ -327,9 +331,10 @@ public class CsvReader {
      *
      * @throws IOException if file cannot be read
      */
-    public static String printColumnTypes(String csvFileName, boolean header, char delimiter) throws IOException {
+    public static String printColumnTypes(String csvFileName, boolean header, char delimiter,
+                                          char quotechar, char escape) throws IOException {
 
-        Table structure = detectedColumnTypes(csvFileName, header, delimiter);
+        Table structure = detectedColumnTypes(csvFileName, header, delimiter, quotechar, escape);
 
         StringBuilder buf = new StringBuilder();
         buf.append("ColumnType[] columnTypes = {");
@@ -404,7 +409,8 @@ public class CsvReader {
      * corrected and
      * used to explicitly specify the correct column types.
      */
-    protected static ColumnType[] detectColumnTypes(InputStream stream, boolean header, char delimiter, boolean skipSampling)
+    protected static ColumnType[] detectColumnTypes(InputStream stream, boolean header, char delimiter,
+                                                    char quotechar, char escape, boolean skipSampling)
             throws IOException {
 
         int linesToSkip = header ? 1 : 0;
@@ -423,6 +429,8 @@ public class CsvReader {
 
         CSVParser csvParser = new CSVParserBuilder()
                 .withSeparator(delimiter)
+                .withQuoteChar(quotechar)
+                .withEscapeChar(escape)
                 .build();
         try (CSVReader reader = new CSVReaderBuilder(new InputStreamReader(ubis))
                 .withCSVParser(csvParser)

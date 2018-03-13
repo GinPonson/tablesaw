@@ -35,6 +35,8 @@ public class CsvReadOptions {
   private final ColumnType[] columnTypes;
   @Builder.Default private final boolean header = true;
   @Builder.Default private final char separator = ',';
+  @Builder.Default private final char quotechar = '"';
+  @Builder.Default private final char escape = '\u0000';
   @Builder.Default private final boolean sample = true;
 
   /**
