@@ -30,6 +30,11 @@ public class TimeColumnType extends AbstractColumnType {
         return new TimeParser(this, options);
     }
 
+    @Override
+    public AbstractParser<?> parser() {
+        return new TimeParser(this);
+    }
+
     public static int missingValueIndicator() {
         return Integer.MIN_VALUE;
     }

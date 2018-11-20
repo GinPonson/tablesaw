@@ -100,7 +100,7 @@ public class StringColumn extends AbstractColumn<String>
         }
     }
 
-    private StringColumn(String name) {
+    public StringColumn(String name) {
         super(STRING, name);
     }
 

@@ -3,6 +3,7 @@ package tech.tablesaw.columns.numbers;
 import tech.tablesaw.api.ColumnType;
 import tech.tablesaw.api.IntColumn;
 import tech.tablesaw.columns.AbstractColumnType;
+import tech.tablesaw.columns.AbstractParser;
 import tech.tablesaw.io.csv.CsvReadOptions;
 
 public class IntColumnType extends AbstractColumnType {
@@ -26,6 +27,11 @@ public class IntColumnType extends AbstractColumnType {
     @Override
     public IntParser customParser(CsvReadOptions options) {
         return new IntParser(this, options);
+    }
+
+    @Override
+    public AbstractParser<?> parser() {
+        return new IntParser(this);
     }
 
     public static boolean isMissingValue(int value) {

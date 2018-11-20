@@ -3,6 +3,7 @@ package tech.tablesaw.columns.strings;
 import tech.tablesaw.api.ColumnType;
 import tech.tablesaw.api.StringColumn;
 import tech.tablesaw.columns.AbstractColumnType;
+import tech.tablesaw.columns.AbstractParser;
 import tech.tablesaw.io.csv.CsvReadOptions;
 
 public class StringColumnType extends AbstractColumnType {
@@ -27,6 +28,11 @@ public class StringColumnType extends AbstractColumnType {
     @Override
     public StringParser customParser(CsvReadOptions options) {
         return new StringParser(this, options);
+    }
+
+    @Override
+    public AbstractParser<?> parser() {
+        return new StringParser(this);
     }
 
     public static String missingValueIndicator() {

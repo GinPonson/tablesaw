@@ -21,6 +21,11 @@ public class SkipColumnType extends AbstractColumnType {
         throw new UnsupportedOperationException("Column type " + name() + " doesn't support parsing");
     }
 
+    @Override
+    public AbstractParser<?> parser() {
+        throw new UnsupportedOperationException("Column type " + name() + " doesn't support parsing");
+    }
+
     public static Object missingValueIndicator() {
         throw new UnsupportedOperationException("Column type " + SKIP + " doesn't support missing values");
     }

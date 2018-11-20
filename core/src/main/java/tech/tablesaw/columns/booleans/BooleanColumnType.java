@@ -3,6 +3,7 @@ package tech.tablesaw.columns.booleans;
 import tech.tablesaw.api.BooleanColumn;
 import tech.tablesaw.api.ColumnType;
 import tech.tablesaw.columns.AbstractColumnType;
+import tech.tablesaw.columns.AbstractParser;
 import tech.tablesaw.io.csv.CsvReadOptions;
 
 public class BooleanColumnType extends AbstractColumnType {
@@ -28,6 +29,11 @@ public class BooleanColumnType extends AbstractColumnType {
     @Override
     public BooleanParser customParser(CsvReadOptions readOptions) {
         return new BooleanParser(this, readOptions);
+    }
+
+    @Override
+    public AbstractParser<?> parser() {
+        return new BooleanParser(this);
     }
 
     public static byte missingValueIndicator() {

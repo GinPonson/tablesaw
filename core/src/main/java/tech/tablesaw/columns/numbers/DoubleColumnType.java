@@ -3,6 +3,7 @@ package tech.tablesaw.columns.numbers;
 import tech.tablesaw.api.ColumnType;
 import tech.tablesaw.api.DoubleColumn;
 import tech.tablesaw.columns.AbstractColumnType;
+import tech.tablesaw.columns.AbstractParser;
 import tech.tablesaw.io.csv.CsvReadOptions;
 
 public class DoubleColumnType extends AbstractColumnType {
@@ -26,6 +27,11 @@ public class DoubleColumnType extends AbstractColumnType {
     @Override
     public DoubleParser customParser(CsvReadOptions options) {
         return new DoubleParser(this, options);
+    }
+
+    @Override
+    public AbstractParser<?> parser() {
+        return new DoubleParser(this);
     }
 
     public static boolean isMissingValue(double value) {

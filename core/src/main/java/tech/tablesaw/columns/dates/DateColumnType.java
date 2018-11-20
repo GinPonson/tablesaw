@@ -30,6 +30,11 @@ public class DateColumnType extends AbstractColumnType {
         return new DateParser(this, options);
     }
 
+    @Override
+    public AbstractParser<?> parser() {
+        return new DateParser(this);
+    }
+
     public static int missingValueIndicator() {
         return Integer.MIN_VALUE;
     }

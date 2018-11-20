@@ -66,6 +66,8 @@ public interface ColumnType {
 
     AbstractParser<?> customParser(CsvReadOptions options);
 
+    AbstractParser<?> parser();
+
     default boolean compare(int rowNumber, Column<?> temp, Column<?> original) {
         return original.get(rowNumber).equals(temp.get(temp.size() - 1));
     }
