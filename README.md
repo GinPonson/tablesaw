@@ -7,83 +7,59 @@ Tablesaw
 
 ### Overview
 
-__Tablesaw__ is the shortest path to data science in Java. It includes a dataframe, an embedded column-store, and hundreds of methods to transform, summarize, or filter data similar to the Pandas dataframe and R data frame. If you work with data in Java, it will probably save you time and effort.
+__Tablesaw__ is Java for data science. It includes a dataframe and a visualization library, as well as utilities for loading, transforming, filtering, and summarizing data. It's fast and careful with memory. If you work with data in Java, it may save you time and effort. Tablesaw also supports descriptive statistics and integrates well with the Smile machine learning library. 
 
-Tablesaw also supports descriptive statistics, data visualization, and machine learning. And it scales: You can munge a 1/2 billion rows on a laptop and over 2 billion records on a server. 
-
-There are other, more elaborate platforms for data science in Java. They're designed to work with vast amounts of data, and  require a huge stack and a vast amount of effort.
-
-You can include tablesaw-core, which is the dataframe library itself, with: 
-
-    <dependency>
-        <groupId>tech.tablesaw</groupId>
-        <artifactId>tablesaw-core</artifactId>
-        <version>0.11.6</version>
-    </dependency>
-
-You may also add dependencies for `tablesaw-plot` to use the plotting capability and `tablesaw-smile` to use the [Smile](https://github.com/haifengl/smile) machine learning integration.
-
-### Documentation and support:
-
-* Please see our documentation page: https://jtablesaw.github.io/tablesaw/ 
-* We also recommend trying Tablesaw inside [Jupyter notebooks](http://arogozhnikov.github.io/2016/09/10/jupyter-features.html), which lets you experiment with Tablesaw in a more interactive manner. Get started by [installing BeakerX](http://beakerx.com/documentation) and trying [the sample Tablesaw notebook](https://github.com/twosigma/beakerx/blob/master/doc/groovy/Tablesaw.ipynb)
-
-### Tablesaw features: 
+### Tablesaw features
 
 #### Data processing & transformation
 * Import data from RDBMS and CSV files, local or remote (http, S3, etc.)
-* Combine files
-* Add and remove columns
-* Sort, Group, Filter 
+* Combine tables by appending or joining
+* Add and remove columns or rows
+* Sort, Group, Query 
 * Map/Reduce operations
-* Store tables in a fast, compressed columnar storage format
-
-#### Statistics and Machine Learning
-* Descriptive stats: mean, min, max, median, sum, product, standard deviation, variance, percentiles, geometric mean, skewness, kurtosis, etc.
-* Regression: Least Squares
-* Classification: Logistic Regression, Linear Discriminant Analysis, Decision Trees, k-Nearest Neighbors, Random Forests
-* Clustering: k-Means, x-Means, g-Means
-* Association: Frequent Item Sets, Association Rule Mining
-* Feature engineering: Principal Components Analysis
+* Handle missing values
 
 #### Visualization
-* Scatter plots
-* Line plots
-* Vertical and Horizontal Bar charts
-* Histograms 
-* Box plots
-* Quantile Plots
-* Pareto Charts
 
-Here's an example where we use [XChart](https://github.com/timmolter/XChart) to map the locations of tornadoes: 
-![Alt text](https://jtablesaw.files.wordpress.com/2016/07/tornados3.png?w=809)
+Tablesaw supports data visualization by providing a wrapper for the Plot.ly JavaScript plotting library. Here are a few examples of the new library in action.
 
-You can see examples and read more about plotting in Tablesaw here: https://jtablesaw.wordpress.com/2016/07/30/new-plot-types-in-tablesaw/.
+| ![Tornadoes](https://jtablesaw.github.io/tablesaw/userguide/images/eda/box1.png) | ![Tornadoes](https://jtablesaw.github.io/tablesaw/userguide/images/ml/regression/run%20diff%20vs%20wins.png) | ![Tornadoes](https://jtablesaw.github.io/tablesaw/userguide/images/tornado.scatter.png) |
+| ------------------------------------------------------------ | ------------------------------------------------------------ | ------------------------------------------------------------ |
+| ![Tornadoes](https://jtablesaw.github.io/tablesaw/userguide/images/eda/bush_time_series2.png) | ![Tornadoes](https://jtablesaw.github.io/tablesaw/userguide/images/eda/fatalities_by_scale.png) | ![Tornadoes](https://jtablesaw.github.io/tablesaw/userguide/images/eda/histogram2.png) |
+| ![Tornadoes](https://jtablesaw.github.io/tablesaw/userguide/images/eda/histogram2d.png) | ![Tornadoes](https://jtablesaw.github.io/tablesaw/userguide/images/eda/pie.png) | ![Tornadoes](https://jtablesaw.github.io/tablesaw/userguide/images/eda/wine_bubble_3d.png) |
+| ![](https://jtablesaw.github.io/tablesaw/userguide/images/eda/wine_bubble_with_groups.png) | ![](https://jtablesaw.github.io/tablesaw/userguide/images/eda/robberies_area.png) | ![](https://jtablesaw.github.io/tablesaw/userguide/images/ml/regression/wins%20by%20year.png) |
+| ![Tornadoes](https://jtablesaw.github.io/tablesaw/userguide/images/eda/bush_heatmap1.png) | ![Tornadoes](https://jtablesaw.github.io/tablesaw/userguide/images/eda/tornado_bar_groups.png) | ![Tornadoes](https://jtablesaw.github.io/tablesaw/userguide/images/eda/ohlc1.png) |
 
-### Current performance:
-You can load a 500,000,000 row, 4 column csv file (35GB on disk) entirely into about 10 GB of memory. If it's in Tablesaw's .saw format, you can load it in 22 seconds. You can query that table in 1-2 ms: fast enough to use as a cache for a Web app.
+#### Statistics
 
-BTW, those numbers were achieved on a laptop.
+* Descriptive stats: mean, min, max, median, sum, product, standard deviation, variance, percentiles, geometric mean, skewness, kurtosis, etc.
 
-### Easy to Use is Easy to Say
-The goal in this example is to identify the production shifts with the worst performance. These few lines demonstrate __data import__, column-wise operations (__differenceInSeconds()__), filters (__isInQ2()__) grouping and aggegating (__median()__ and __.by()__), and (__top(n)__) calculations. 
+### Getting started
 
-```java
-Table ops = Table.read().csv("data/operations.csv");                             // load data
-DateTimeColumn start = ops.dateColumn("Date").atTime(ops.timeColumn("Start"));
-DateTimeColumn end = ops.dateColumn("Date").atTime(ops.timeColumn("End");
-LongColumn duration = start.differenceInSeconds(end);                            // calc duration
-duration.setName("Duration");
-ops.addColumn(duration);
+Add tablesaw-core and tablesaw-jsplot to your project: 
 
-Table filtered = ops.selectWhere(                                                // filter
-    allOf(
-        column("date").isInQ2(),
-        column("SKU").startsWith("429"),
-        column("Operation").isEqualTo("Assembly")));
-   
-Table summary = filtered.median("Duration").by("Facility", "Shift");             // group medians
-FloatArrayList tops = summary.floatColumn("Median").top(5);                      // get "slowest"
+```xml
+<dependency>
+    <groupId>tech.tablesaw</groupId>
+    <artifactId>tablesaw-core</artifactId>
+    <version>0.25.2</version>
+</dependency>
+<dependency>
+    <groupId>tech.tablesaw</groupId>
+    <artifactId>tablesaw-jsplot</artifactId>
+    <version>0.25.2</version>
+</dependency>
 ```
 
-If you see something that can be improved, please let us know.
+### Documentation and support
+
+* Start here:  https://jtablesaw.github.io/tablesaw/gettingstarted
+* Then see our documentation page: https://jtablesaw.github.io/tablesaw/ and the [Tablesaw User Guide](https://jtablesaw.github.io/tablesaw/userguide/toc).
+
+And *always* feel free to ask questions or make suggestions here on the [issues tab](https://github.com/jtablesaw/tablesaw/issues). 
+
+### Integrations
+
+* We recommend trying Tablesaw inside [Jupyter notebooks](http://arogozhnikov.github.io/2016/09/10/jupyter-features.html), which lets you experiment with Tablesaw in a more interactive manner. Get started by [installing BeakerX](http://beakerx.com/documentation) and trying [the sample Tablesaw notebook](https://github.com/twosigma/beakerx/blob/master/doc/groovy/Tablesaw.ipynb)
+* You may utilize Tablesaw with many machine learning libraries. To see an example of using Tablesaw with [Smile](https://haifengl.github.io/smile/) check out [the sample Tablesaw Jupyter notebook](https://github.com/twosigma/beakerx/blob/master/doc/groovy/Tablesaw.ipynb) 
+* You may use [quandl4j-tablesaw](http://quandl4j.org) if you'd like to load financial and economic data from [Quandl](https://www.quandl.com) into Tablesaw. This is demonstrated in [the sample Tablesaw notebook](https://github.com/twosigma/beakerx/blob/master/doc/groovy/Tablesaw.ipynb) as well

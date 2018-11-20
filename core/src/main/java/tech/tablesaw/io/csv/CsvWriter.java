@@ -14,99 +14,101 @@
 
 package tech.tablesaw.io.csv;
 
-import java.io.File;
-import java.io.FileWriter;
-import java.io.IOException;
-import java.io.OutputStream;
-import java.io.OutputStreamWriter;
-import java.io.Writer;
+import com.univocity.parsers.csv.CsvWriterSettings;
+import tech.tablesaw.api.Table;
 
 import javax.annotation.concurrent.Immutable;
-
-import com.opencsv.CSVWriter;
-
-import tech.tablesaw.api.Table;
-import tech.tablesaw.columns.Column;
+import java.io.Writer;
 
 /**
- * Static utility class that writes tables and individual columns to CSV files
- * <p>
- * TODO(lwhite): Do something with the missing indicator param in write() method
- * TODO(lwhite): Add a missing indicator to the column write method, plus a method defining a default missing indicator
+ * Class that writes tables and individual columns to CSV files
  */
 @Immutable
 final public class CsvWriter {
 
+    private static final String nullValue = "";
+
+    private final Table table;
+    private final boolean header;
+    private final Writer writer;
+    private final CsvWriterSettings settings;
+
     /**
      * Private constructor to prevent instantiation
      */
-    private CsvWriter() {
+    public CsvWriter(Table table, CsvWriteOptions options) {
+        this.table = table;
+        this.header = options.header();
+        this.writer = options.writer();
+
+        this.settings = new CsvWriterSettings();
+        // Sets the character sequence to write for the values that are null.
+        settings.setNullValue(nullValue);
+        settings.getFormat().setDelimiter(options.separator());
+        settings.getFormat().setQuote(options.quoteChar());
+        settings.getFormat().setQuoteEscape(options.escapeChar());
+        settings.getFormat().setLineSeparator(options.lineEnd());
+        // writes empty lines as well.
+        settings.setSkipEmptyLines(false);
+
     }
 
-    /**
-     * Writes the given table to the given file
-     *
-     * @throws IOException if the write fails
-     */
-    public static void write(Table table, Writer writer) throws IOException {
-        try (CSVWriter csvWriter = new CSVWriter(writer)) {
-            String[] header = new String[table.columnCount()];
-            for (int c = 0; c < table.columnCount(); c++) {
-                header[c] = table.column(c).name();
+    public void write() {
+
+        com.univocity.parsers.csv.CsvWriter csvWriter = null;
+        // Creates a writer with the above settings;
+        try {
+
+            csvWriter = new com.univocity.parsers.csv.CsvWriter(writer, settings);
+            if (header) {
+                String[] header = new String[table.columnCount()];
+                for (int c = 0; c < table.columnCount(); c++) {
+                    header[c] = table.column(c).name();
+                }
+                csvWriter.writeHeaders(header);
             }
-            csvWriter.writeNext(header, false);
             for (int r = 0; r < table.rowCount(); r++) {
                 String[] entries = new String[table.columnCount()];
                 for (int c = 0; c < table.columnCount(); c++) {
                     table.get(r, c);
-                    entries[c] = table.get(r, c);
+                    entries[c] = table.getUnformatted(r, c);
                 }
-                csvWriter.writeNext(entries, false);
+                csvWriter.writeRow(entries);
+            }
+        } finally {
+            if (csvWriter != null) {
+                csvWriter.flush();
+                csvWriter.close();
             }
         }
     }
 
-    /**
-     * Writes the given table to a file with the given filename
-     *
-     * @throws IOException if the write fails
-     */
-    public static void write(Table table, OutputStream stream) throws IOException {
-       write(table, new OutputStreamWriter(stream));    
+    public String getNullValue() {
+        return settings.getNullValue();
     }
 
-    /**
-     * Writes the given table to athe given file
-     *
-     * @throws IOException if the write fails
-     */
-    public static void write(Table table, File file) throws IOException {
-       write(table, new FileWriter(file));    
+    public Table getTable() {
+        return table;
     }
 
-    /**
-     * Writes the given table to a file with the given filename
-     *
-     * @throws IOException if the write fails
-     */
-    public static void write(Table table, String fileName) throws IOException {
-       write(table, new File(fileName));    
+    public char getQuoteCharacter() {
+        return settings.getFormat().getQuote();
     }
 
-    /**
-     * Writes the given column to a file with the given fileName as a single column CSV file
-     *
-     * @throws IOException if the write fails
-     */
-    public static void write(String fileName, Column column) throws IOException {
-        try (CSVWriter writer = new CSVWriter(new FileWriter(fileName))) {
-            String[] header = {column.name()};
-            writer.writeNext(header, false);
+    public boolean getHeader() {
+        return header;
+    }
 
-            for (int r = 0; r < column.size(); r++) {
-                String[] entries = {column.getString(r)};
-                writer.writeNext(entries, false);
-            }
-        }
+    public char getEscapeChar() {
+        return settings.getFormat().getQuoteEscape();
+    }
+
+    public char getSeparator() {
+        return settings.getFormat().getDelimiter();
+    }
+
+    public String getLineEnd() {
+        return new String(settings.getFormat().getLineSeparator());
     }
 }
+

@@ -14,15 +14,23 @@
 
 package tech.tablesaw.index;
 
+import java.time.LocalDate;
+import java.time.LocalTime;
+
+import com.google.common.base.Preconditions;
+
 import it.unimi.dsi.fastutil.ints.Int2ObjectAVLTreeMap;
 import it.unimi.dsi.fastutil.ints.Int2ObjectOpenHashMap;
 import it.unimi.dsi.fastutil.ints.Int2ObjectSortedMap;
 import it.unimi.dsi.fastutil.ints.IntArrayList;
+import tech.tablesaw.api.ColumnType;
 import tech.tablesaw.api.DateColumn;
 import tech.tablesaw.api.IntColumn;
 import tech.tablesaw.api.TimeColumn;
-import tech.tablesaw.util.BitmapBackedSelection;
-import tech.tablesaw.util.Selection;
+import tech.tablesaw.columns.dates.PackedLocalDate;
+import tech.tablesaw.columns.times.PackedLocalTime;
+import tech.tablesaw.selection.BitmapBackedSelection;
+import tech.tablesaw.selection.Selection;
 
 
 /**
@@ -32,11 +40,11 @@ public class IntIndex {
 
     private final Int2ObjectAVLTreeMap<IntArrayList> index;
 
-    public IntIndex(IntColumn column) {
+    public IntIndex(DateColumn column) {
         int sizeEstimate = Integer.min(1_000_000, column.size() / 100);
         Int2ObjectOpenHashMap<IntArrayList> tempMap = new Int2ObjectOpenHashMap<>(sizeEstimate);
         for (int i = 0; i < column.size(); i++) {
-            int value = column.get(i);
+            int value = column.getIntInternal(i);
             IntArrayList recordIds = tempMap.get(value);
             if (recordIds == null) {
                 recordIds = new IntArrayList();
@@ -50,11 +58,13 @@ public class IntIndex {
         index = new Int2ObjectAVLTreeMap<>(tempMap);
     }
 
-    public IntIndex(DateColumn column) {
+    public IntIndex(IntColumn column) {
+        Preconditions.checkArgument(column.type().equals(ColumnType.INTEGER),
+                "Int indexing only allowed on INTEGER numeric columns");
         int sizeEstimate = Integer.min(1_000_000, column.size() / 100);
         Int2ObjectOpenHashMap<IntArrayList> tempMap = new Int2ObjectOpenHashMap<>(sizeEstimate);
         for (int i = 0; i < column.size(); i++) {
-            int value = column.getIntInternal(i);
+            int value = column.getInt(i);
             IntArrayList recordIds = tempMap.get(value);
             if (recordIds == null) {
                 recordIds = new IntArrayList();
@@ -101,9 +111,17 @@ public class IntIndex {
         Selection selection = new BitmapBackedSelection();
         IntArrayList list = index.get(value);
         if (list != null) {
-          addAllToSelection(list, selection);
+            addAllToSelection(list, selection);
         }
         return selection;
+    }
+
+    public Selection get(LocalTime value) {
+        return get(PackedLocalTime.pack(value));
+    }
+
+    public Selection get(LocalDate value) {
+        return get(PackedLocalDate.pack(value));
     }
 
     public Selection atLeast(int value) {
@@ -115,6 +133,14 @@ public class IntIndex {
         return selection;
     }
 
+    public Selection atLeast(LocalTime value) {
+        return atLeast(PackedLocalTime.pack(value));
+    }
+
+    public Selection atLeast(LocalDate value) {
+        return atLeast(PackedLocalDate.pack(value));
+    }
+
     public Selection greaterThan(int value) {
         Selection selection = new BitmapBackedSelection();
         Int2ObjectSortedMap<IntArrayList> tail = index.tailMap(value + 1);
@@ -122,6 +148,14 @@ public class IntIndex {
             addAllToSelection(keys, selection);
         }
         return selection;
+    }
+
+    public Selection greaterThan(LocalTime value) {
+        return greaterThan(PackedLocalTime.pack(value));
+    }
+
+    public Selection greaterThan(LocalDate value) {
+        return greaterThan(PackedLocalDate.pack(value));
     }
 
     public Selection atMost(int value) {
@@ -133,6 +167,14 @@ public class IntIndex {
         return selection;
     }
 
+    public Selection atMost(LocalTime value) {
+        return atMost(PackedLocalTime.pack(value));
+    }
+
+    public Selection atMost(LocalDate value) {
+        return atMost(PackedLocalDate.pack(value));
+    }
+
     public Selection lessThan(int value) {
         Selection selection = new BitmapBackedSelection();
         Int2ObjectSortedMap<IntArrayList> head = index.headMap(value);  // we add 1 to get values equal to the arg
@@ -140,5 +182,13 @@ public class IntIndex {
             addAllToSelection(keys, selection);
         }
         return selection;
+    }
+
+    public Selection lessThan(LocalTime value) {
+        return lessThan(PackedLocalTime.pack(value));
+    }
+
+    public Selection lessThan(LocalDate value) {
+        return lessThan(PackedLocalDate.pack(value));
     }
 }

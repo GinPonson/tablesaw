@@ -18,34 +18,26 @@ import org.junit.Before;
 import org.junit.Test;
 
 import tech.tablesaw.aggregate.AggregateFunctions;
-import tech.tablesaw.api.ColumnType;
+import tech.tablesaw.api.StringColumn;
 import tech.tablesaw.api.Table;
-import tech.tablesaw.columns.Column;
 import tech.tablesaw.io.csv.CsvReadOptions;
-import tech.tablesaw.io.html.HtmlTableWriter;
-import tech.tablesaw.table.ViewGroup;
+import tech.tablesaw.table.StandardTableSliceGroup;
+import tech.tablesaw.table.TableSliceGroup;
 
 public class HtmlTableWriterTest {
-
-    private static ColumnType[] types = {
-            ColumnType.LOCAL_DATE,     // date of poll
-            ColumnType.INTEGER,        // approval rating (pct)
-            ColumnType.CATEGORY        // polling org
-    };
 
     private Table table;
 
     @Before
     public void setUp() throws Exception {
-        table = Table.read().csv(CsvReadOptions.builder("../data/BushApproval.csv").columnTypes(types));
+        table = Table.read().csv(CsvReadOptions.builder("../data/bush.csv"));
     }
 
     @Test
     public void testWrite() {
-        Column byColumn = table.column("who");
-        ViewGroup group = new ViewGroup(table, byColumn);
-        Table result = group.agg("approval", AggregateFunctions.mean);
+        StringColumn byColumn = table.stringColumn("who");
+        TableSliceGroup group = StandardTableSliceGroup.create(table, byColumn);
+        Table result = group.aggregate("approval", AggregateFunctions.mean);
         HtmlTableWriter.write(result);
     }
-
 }

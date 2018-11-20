@@ -1,296 +1,97 @@
-/*
- * Licensed under the Apache License, Version 2.0 (the "License");
- * you may not use this file except in compliance with the License.
- * You may obtain a copy of the License at
- *
- *     http://www.apache.org/licenses/LICENSE-2.0
- *
- * Unless required by applicable law or agreed to in writing, software
- * distributed under the License is distributed on an "AS IS" BASIS,
- * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
- * See the License for the specific language governing permissions and
- * limitations under the License.
- */
-
 package tech.tablesaw.api;
 
 import com.google.common.base.Preconditions;
-import com.google.common.base.Strings;
+import it.unimi.dsi.fastutil.doubles.DoubleArrayList;
 import it.unimi.dsi.fastutil.floats.FloatArrayList;
-import it.unimi.dsi.fastutil.ints.IntComparator;
+import it.unimi.dsi.fastutil.longs.LongArrayList;
 import it.unimi.dsi.fastutil.shorts.ShortArrayList;
 import it.unimi.dsi.fastutil.shorts.ShortArrays;
-import it.unimi.dsi.fastutil.shorts.ShortIterator;
+import it.unimi.dsi.fastutil.shorts.ShortComparator;
+import it.unimi.dsi.fastutil.shorts.ShortListIterator;
 import it.unimi.dsi.fastutil.shorts.ShortOpenHashSet;
 import it.unimi.dsi.fastutil.shorts.ShortSet;
-import tech.tablesaw.aggregate.AggregateFunctions;
-import tech.tablesaw.columns.AbstractColumn;
 import tech.tablesaw.columns.Column;
-import tech.tablesaw.columns.ShortColumnUtils;
-import tech.tablesaw.filtering.ShortBiPredicate;
-import tech.tablesaw.filtering.ShortPredicate;
-import tech.tablesaw.io.TypeUtils;
-import tech.tablesaw.mapping.ShortMapUtils;
-import tech.tablesaw.sorting.IntComparisonUtil;
-import tech.tablesaw.store.ColumnMetadata;
-import tech.tablesaw.util.BitmapBackedSelection;
-import tech.tablesaw.util.ReverseShortComparator;
-import tech.tablesaw.util.Selection;
-import tech.tablesaw.util.Stats;
+import tech.tablesaw.columns.AbstractParser;
+import tech.tablesaw.columns.numbers.DoubleColumnType;
+import tech.tablesaw.columns.numbers.IntColumnType;
+import tech.tablesaw.columns.numbers.NumberColumnFormatter;
+import tech.tablesaw.columns.numbers.ShortColumnType;
+import tech.tablesaw.selection.Selection;
 
 import java.nio.ByteBuffer;
-import java.util.Arrays;
-import java.util.regex.Matcher;
-import java.util.regex.Pattern;
+import java.util.Comparator;
+import java.util.Iterator;
+import java.util.function.Function;
+import java.util.function.Predicate;
 
-import static tech.tablesaw.aggregate.AggregateFunctions.geometricMean;
-import static tech.tablesaw.aggregate.AggregateFunctions.kurtosis;
-import static tech.tablesaw.aggregate.AggregateFunctions.max;
-import static tech.tablesaw.aggregate.AggregateFunctions.mean;
-import static tech.tablesaw.aggregate.AggregateFunctions.median;
-import static tech.tablesaw.aggregate.AggregateFunctions.min;
-import static tech.tablesaw.aggregate.AggregateFunctions.populationVariance;
-import static tech.tablesaw.aggregate.AggregateFunctions.product;
-import static tech.tablesaw.aggregate.AggregateFunctions.quadraticMean;
-import static tech.tablesaw.aggregate.AggregateFunctions.quartile1;
-import static tech.tablesaw.aggregate.AggregateFunctions.quartile3;
-import static tech.tablesaw.aggregate.AggregateFunctions.range;
-import static tech.tablesaw.aggregate.AggregateFunctions.skewness;
-import static tech.tablesaw.aggregate.AggregateFunctions.stdDev;
-import static tech.tablesaw.aggregate.AggregateFunctions.sum;
-import static tech.tablesaw.aggregate.AggregateFunctions.sumOfLogs;
-import static tech.tablesaw.aggregate.AggregateFunctions.sumOfSquares;
-import static tech.tablesaw.aggregate.AggregateFunctions.variance;
+public class ShortColumn extends NumberColumn<Short> implements CategoricalColumn<Short> {
 
-/**
- * A column that contains signed 2 byte integer values
- */
-public class ShortColumn extends AbstractColumn implements ShortMapUtils, NumericColumn, IntConvertibleColumn {
+    private static final ShortColumnType COLUMN_TYPE = ColumnType.SHORT;
 
-    public static final short MISSING_VALUE = (Short) ColumnType.SHORT_INT.getMissingValue();
+    /**
+     * Compares two ints, such that a sort based on this comparator would sort in descending order
+     */
+    private final ShortComparator descendingComparator = (o2, o1) -> (Short.compare(o1, o2));
 
-    private static final int DEFAULT_ARRAY_SIZE = 128;
-    private static final int BYTE_SIZE = 2;
-    private static final Pattern COMMA_PATTERN = Pattern.compile(",");
-    private ShortArrayList data;
+    private final ShortArrayList data;
 
-    final IntComparator comparator = new IntComparator() {
-
-        @Override
-        public int compare(Integer i1, Integer i2) {
-            return compare((int) i1, (int) i2);
-        }
-
-        public int compare(int i1, int i2) {
-            int prim1 = get(i1);
-            int prim2 = get(i2);
-            return IntComparisonUtil.getInstance().compare(prim1, prim2);
-        }
-    };
-
-    public ShortColumn(String name) {
-        this(name, new ShortArrayList(DEFAULT_ARRAY_SIZE));
-    }
-
-    public ShortColumn(String name, int initialSize) {
-        this(name, new ShortArrayList(initialSize));
-    }
-
-    public ShortColumn(String name, short[] arr) {
-        this(name, new ShortArrayList(arr));
-    }
-
-    private ShortColumn(String name, ShortArrayList data) {
-        super(name);
+    protected ShortColumn(final String name, ShortArrayList data) {
+        super(COLUMN_TYPE, name);
+        this.printFormatter = NumberColumnFormatter.ints();
         this.data = data;
     }
 
-    public ShortColumn(ColumnMetadata metadata) {
-        super(metadata);
-        data = new ShortArrayList(metadata.getSize());
+    public static ShortColumn create(final String name) {
+        return new ShortColumn(name, new ShortArrayList());
     }
 
-    protected static boolean isMissing(short value) {
-      return value == MISSING_VALUE;
+    public static ShortColumn create(final String name, final short[] arr) {
+        return new ShortColumn(name, new ShortArrayList(arr));
     }
 
-    /**
-     * Returns a float that is parsed from the given String
-     * <p>
-     * We remove any commas before parsing
-     */
-    public static short convert(String stringValue) {
-        if (Strings.isNullOrEmpty(stringValue) || TypeUtils.MISSING_INDICATORS.contains(stringValue)) {
-            return (Short) ColumnType.SHORT_INT.getMissingValue();
+    public static ShortColumn create(final String name, final int initialSize) {
+        ShortColumn column = new ShortColumn(name, new ShortArrayList(initialSize));
+        for (int i = 0; i < initialSize; i++) {
+            column.appendMissing();
         }
-        Matcher matcher = COMMA_PATTERN.matcher(stringValue);
-        return Short.parseShort(matcher.replaceAll(""));
+        return column;
     }
 
+    @Override
+    public ShortColumn createCol(final String name, final int initialSize) {
+        return create(name, initialSize);
+    }
+
+    @Override
+    public ShortColumn createCol(final String name) {
+        return create(name);
+    }
+
+    public static boolean valueIsMissing(int value) {
+        return value == ShortColumnType.missingValueIndicator();
+    }
+
+    @Override
+    public Short get(int index) {
+        return getShort(index);
+    }
+
+    public short getShort(int index) {
+        return data.getShort(index);
+    }
+
+    @Override
+    public ShortColumn subset(final int[] rows) {
+        final ShortColumn c = this.emptyCopy();
+        for (final int row : rows) {
+            c.append(getShort(row));
+        }
+        return c;
+    }
+
+    @Override
     public int size() {
         return data.size();
-    }
-
-    @Override
-    public ColumnType type() {
-        return ColumnType.SHORT_INT;
-    }
-
-    public void append(short i) {
-        data.add(i);
-    }
-
-    public void set(int index, short value) {
-        data.set(index, value);
-    }
-
-    /**
-     * Conditionally update this column, replacing current values with newValue for all rows where the current value
-     * matches the selection criteria
-     * <p>
-     * Example:
-     * myColumn.set((short) 4, myColumn.isMissing()); // no more missing values
-     */
-    public void set(short newValue, Selection rowSelection) {
-        for (int row : rowSelection) {
-            set(row, newValue);
-        }
-    }
-
-    public Selection isLessThan(int i) {
-        return select(ShortColumnUtils.isLessThan, i);
-    }
-
-    public Selection isGreaterThan(int i) {
-        return select(ShortColumnUtils.isGreaterThan, i);
-    }
-
-    public Selection isGreaterThan(ShortColumn other) {
-        Selection results = new BitmapBackedSelection();
-        int i = 0;
-        ShortIterator shortIterator = other.iterator();
-        for (int next : data) {
-            if (next > shortIterator.nextShort()) {
-                results.add(i);
-            }
-            i++;
-        }
-        return results;
-    }
-
-    public Selection isLessThan(ShortColumn other) {
-        Selection results = new BitmapBackedSelection();
-        int i = 0;
-        ShortIterator shortIterator = other.iterator();
-        for (int next : data) {
-            if (next < shortIterator.nextShort()) {
-                results.add(i);
-            }
-            i++;
-        }
-        return results;
-    }
-
-    public Selection isGreaterThanOrEqualTo(int i) {
-        return select(ShortColumnUtils.isGreaterThanOrEqualTo, i);
-    }
-
-    public Selection isLessThanOrEqualTo(int i) {
-        return select(ShortColumnUtils.isLessThanOrEqualTo, i);
-    }
-
-    public Selection isNotEqualTo(int i) {
-        return select(ShortColumnUtils.isNotEqualTo, i);
-    }
-
-    public Selection isEqualTo(int i) {
-        return select(ShortColumnUtils.isEqualTo, i);
-    }
-
-    public Selection isEqualTo(ShortColumn f) {
-        Selection results = new BitmapBackedSelection();
-        int i = 0;
-        ShortIterator shortIterator = f.iterator();
-        for (int next : data) {
-            if (next == shortIterator.nextShort()) {
-                results.add(i);
-            }
-            i++;
-        }
-        return results;
-    }
-
-    public ShortColumn select(Selection selection) {
-        ShortColumn column = emptyCopy();
-        for (int next : selection) {
-            column.append(data.getShort(next));
-        }
-        return column;
-    }
-
-    @Override
-    public Table summary() {
-        return stats().asTable();
-    }
-
-    /**
-     * Returns the count of missing values in this column
-     */
-    @Override
-    public int countMissing() {
-        int count = 0;
-        for (int i = 0; i < size(); i++) {
-            if (get(i) == MISSING_VALUE) {
-                count++;
-            }
-        }
-        return count;
-    }
-
-    @Override
-    public int countUnique() {
-        Selection selection = new BitmapBackedSelection();
-        for (int i : data) {
-            selection.add(i);
-        }
-        return selection.size();
-    }
-
-    @Override
-    public ShortColumn unique() {
-        Selection selection = new BitmapBackedSelection();
-        for (short i : data) {
-            selection.add(i);
-        }
-        int[] ints = selection.toArray();
-        short[] shorts = new short[ints.length];
-        for (int i = 0; i < ints.length; i++) {
-            shorts[i] = (short) ints[i];
-        }
-        return new ShortColumn(name() + " Unique values", ShortArrayList.wrap(shorts));
-    }
-
-    @Override
-    public String getString(int row) {
-        short value = data.getShort(row);
-        if (value == MISSING_VALUE) {
-            return null;
-        }
-        return String.valueOf(value);
-    }
-
-    @Override
-    public ShortColumn emptyCopy() {
-        ShortColumn column = new ShortColumn(name(), DEFAULT_ARRAY_SIZE);
-        column.setComment(comment());
-        return column;
-    }
-
-    @Override
-    public ShortColumn emptyCopy(int rowSize) {
-        ShortColumn column = new ShortColumn(name(), rowSize);
-        column.setComment(comment());
-        return column;
     }
 
     @Override
@@ -299,425 +100,404 @@ public class ShortColumn extends AbstractColumn implements ShortMapUtils, Numeri
     }
 
     @Override
-    public void sortAscending() {
-        Arrays.parallelSort(data.elements());
-    }
-
-    @Override
-    public void sortDescending() {
-        ShortArrays.parallelQuickSort(data.elements(), ReverseShortComparator.instance());
-    }
-
-    @Override
-    public ShortColumn copy() {
-        ShortColumn copy = emptyCopy(size());
-        copy.data.addAll(data);
-        copy.setComment(comment());
-        return copy;
-    }
-
-    @Override
-    public boolean isEmpty() {
-        return data.isEmpty();
-    }
-
-    @Override  // TODO(lwhite): Move to AbstractColumn
-    public void appendCell(String object) {
-        try {
-            append(convert(object));
-        } catch (NumberFormatException nfe) {
-            throw new NumberFormatException(name() + ": " + nfe.getMessage());
-        }
-    }
-
-    public short get(int index) {
-        return data.getShort(index);
-    }
-
-    @Override
-    public int getInt(int index) {
-        int value = data.getShort(index);
-        return value == MISSING_VALUE ? IntColumn.MISSING_VALUE : value;
-    }
-
-    @Override
-    public long getLong(int index) {
-        int value = data.getShort(index);
-        return value == MISSING_VALUE ? LongColumn.MISSING_VALUE : value;
-    }
-
-    @Override
-    public float getFloat(int index) {
-        int value = data.getShort(index);
-        return value == MISSING_VALUE ? FloatColumn.MISSING_VALUE : (float) value;
-    }
-
-    @Override
-    public double getDouble(int index) {
-        int value = data.getShort(index);
-        return value == MISSING_VALUE ? DoubleColumn.MISSING_VALUE : (double) value;
-    }
-
-    @Override
-    public IntComparator rowComparator() {
-        return comparator;
-    }
-
-    // Reduce functions applied to the whole column
-    public long sum() {
-        return Math.round(sum.agg(asDoubleArray()));
-    }
-
-    public double product() {
-        return product.agg(this);
-    }
-
-    public double mean() {
-        return mean.agg(this);
-    }
-
-    public double median() {
-        return median.agg(this);
-    }
-
-    public double quartile1() {
-        return quartile1.agg(this);
-    }
-
-    public double quartile3() {
-        return quartile3.agg(this);
-    }
-
-    public double percentile(double percentile) {
-        return AggregateFunctions.percentile(this.asDoubleArray(), percentile);
-    }
-
-    public double range() {
-        return range.agg(this);
-    }
-
-    public double max() {
-        return (short) Math.round(max.agg(this));
-    }
-
-    public double min() {
-        return (short) Math.round(min.agg(this));
-    }
-
-    public double variance() {
-        return variance.agg(this);
-    }
-
-    public double populationVariance() {
-        return populationVariance.agg(this);
-    }
-
-    public double standardDeviation() {
-        return stdDev.agg(this);
-    }
-
-    public double sumOfLogs() {
-        return sumOfLogs.agg(this);
-    }
-
-    public double sumOfSquares() {
-        return sumOfSquares.agg(this);
-    }
-
-    public double geometricMean() {
-        return geometricMean.agg(this);
-    }
-
-    /**
-     * Returns the quadraticMean, aka the root-mean-square, for all values in this column
-     */
-    public double quadraticMean() {
-        return quadraticMean.agg(this);
-    }
-
-    public double kurtosis() {
-        return kurtosis.agg(this);
-    }
-
-    public double skewness() {
-        return skewness.agg(this);
-    }
-
-    public short firstElement() {
-        if (size() > 0) {
-            return get(0);
-        }
-        return MISSING_VALUE;
-    }
-
-    public Selection isPositive() {
-        return select(ShortColumnUtils.isPositive);
-    }
-
-    public Selection isNegative() {
-        return select(ShortColumnUtils.isNegative);
-    }
-
-    public Selection isNonNegative() {
-        return select(ShortColumnUtils.isNonNegative);
-    }
-
-    public Selection isZero() {
-        return select(ShortColumnUtils.isZero);
-    }
-
-    public Selection isEven() {
-        return select(ShortColumnUtils.isEven);
-    }
-
-    public Selection isOdd() {
-        return select(ShortColumnUtils.isOdd);
-    }
-
-    public FloatArrayList asFloatArray() {
-        FloatArrayList output = new FloatArrayList(data.size());
-        for (short aData : data) {
-            output.add(aData);
-        }
-        return output;
-    }
-
-    public String print() {
-        StringBuilder builder = new StringBuilder();
-        builder.append(title());
-        for (short i : data) {
-            builder.append(String.valueOf(i));
-            builder.append('\n');
-        }
-        return builder.toString();
-    }
-
-    @Override
-    public String toString() {
-        return "ShortInt column: " + name();
-    }
-
-    @Override
-    public void append(Column column) {
-        Preconditions.checkArgument(column.type() == this.type());
-        ShortColumn shortColumn = (ShortColumn) column;
-        for (int i = 0; i < shortColumn.size(); i++) {
-            append(shortColumn.get(i));
-        }
-    }
-
-    ShortColumn selectIf(ShortPredicate predicate) {
-        ShortColumn column = emptyCopy();
-        ShortIterator intIterator = iterator();
-        while (intIterator.hasNext()) {
-            short next = intIterator.nextShort();
-            if (predicate.test(next)) {
-                column.append(next);
+    public ShortColumn unique() {
+        final ShortSet values = new ShortOpenHashSet();
+        for (int i = 0; i < size(); i++) {
+            if (!isMissing(i)) {
+                values.add(getShort(i));
             }
+        }
+        final ShortColumn column = ShortColumn.create(name() + " Unique values", values.size());
+        for (short value : values) {
+            column.append(value);
         }
         return column;
     }
 
-    public IntColumn remainder(ShortColumn column2) {
-        IntColumn result = new IntColumn(name() + " % " + column2.name(), size());
-        for (int r = 0; r < size(); r++) {
-            result.append(get(r) % column2.get(r));
-        }
-        return result;
-    }
-
-    public IntColumn append(ShortColumn column2) {
-        IntColumn result = new IntColumn(name() + " + " + column2.name(), size());
-        for (int r = 0; r < size(); r++) {
-            result.append(get(r) + column2.get(r));
-        }
-        return result;
-    }
-
-    /**
-     * Returns the largest ("top") n values in the column
-     *
-     * @param n The maximum number of records to return. The actual number will be smaller if n is greater than the
-     *          number of observations in the column
-     * @return A list, possibly empty, of the largest observations
-     */
-    public ShortArrayList top(int n) {
-        ShortArrayList top = new ShortArrayList();
-        short[] values = data.toShortArray();
-        ShortArrays.parallelQuickSort(values, ReverseShortComparator.instance());
+    @Override
+    public ShortColumn top(int n) {
+        final ShortArrayList top = new ShortArrayList();
+        final short[] values = data.toShortArray();
+        ShortArrays.parallelQuickSort(values, descendingComparator);
         for (int i = 0; i < n && i < values.length; i++) {
             top.add(values[i]);
         }
-        return top;
+        return new ShortColumn(name() + "[Top " + n  + "]", top);
     }
 
-    /**
-     * Returns the smallest ("bottom") n values in the column
-     *
-     * @param n The maximum number of records to return. The actual number will be smaller if n is greater than the
-     *          number of observations in the column
-     * @return A list, possibly empty, of the smallest n observations
-     */
-    public ShortArrayList bottom(int n) {
-        ShortArrayList bottom = new ShortArrayList();
-        short[] values = data.toShortArray();
+    @Override
+    public ShortColumn bottom(final int n) {
+        final ShortArrayList bottom = new ShortArrayList();
+        final short[] values = data.toShortArray();
         ShortArrays.parallelQuickSort(values);
         for (int i = 0; i < n && i < values.length; i++) {
             bottom.add(values[i]);
         }
-        return bottom;
+        return new ShortColumn(name() + "[Bottoms " + n  + "]", bottom);
     }
 
     @Override
-    public ShortIterator iterator() {
+    public ShortColumn lag(int n) {
+        final int srcPos = n >= 0 ? 0 : 0 - n;
+        final short[] dest = new short[size()];
+        final int destPos = n <= 0 ? 0 : n;
+        final int length = n >= 0 ? size() - n : size() + n;
+
+        for (int i = 0; i < size(); i++) {
+            dest[i] = ShortColumnType.missingValueIndicator();
+        }
+
+        short[] array = data.toShortArray();
+
+        System.arraycopy(array, srcPos, dest, destPos, length);
+        return new ShortColumn(name() + " lag(" + n + ")", new ShortArrayList(dest));
+    }
+
+    @Override
+    public ShortColumn removeMissing() {
+        ShortColumn result = copy();
+        result.clear();
+        ShortListIterator iterator = data.iterator();
+        while (iterator.hasNext()) {
+            final short v = iterator.nextShort();
+            if (!isMissingValue(v)) {
+                result.append(v);
+            }
+        }
+        return result;
+    }
+
+    public ShortColumn append(short i) {
+        data.add(i);
+        return this;
+    }
+
+    public ShortColumn append(Short val) {
+        this.append(val.shortValue());
+        return this;
+    }
+
+    @Override
+    public ShortColumn emptyCopy() {
+        return (ShortColumn) super.emptyCopy();
+    }
+
+    @Override
+    public ShortColumn emptyCopy(final int rowSize) {
+        return (ShortColumn) super.emptyCopy(rowSize);
+    }
+
+    @Override
+    public ShortColumn copy() {
+        return new ShortColumn(name(), data.clone());
+    }
+
+    @Override
+    public Iterator<Short> iterator() {
         return data.iterator();
     }
 
-    public Selection select(ShortPredicate predicate) {
-        Selection bitmap = new BitmapBackedSelection();
-        for (int idx = 0; idx < data.size(); idx++) {
-            short next = data.getShort(idx);
-            if (predicate.test(next)) {
-                bitmap.add(idx);
-            }
-        }
-        return bitmap;
-    }
-
-    public Selection select(ShortBiPredicate predicate, int valueToCompareAgainst) {
-        Selection bitmap = new BitmapBackedSelection();
-        for (int idx = 0; idx < data.size(); idx++) {
-            short next = data.getShort(idx);
-            if (predicate.test(next, valueToCompareAgainst)) {
-                bitmap.add(idx);
-            }
-        }
-        return bitmap;
-    }
-
-    public double[] asDoubleArray() {
-        double[] output = new double[data.size()];
-        for (int i = 0; i < data.size(); i++) {
-            long val = data.getShort(i);
-            if (val == MISSING_VALUE) {
-                output[i] = Double.NaN;
-            } else {
-                output[i] = val;
-            }
+    @Override
+    public Object[] asObjectArray() {
+        final Short[] output = new Short[size()];
+        for (int i = 0; i < size(); i++) {
+            output[i] = getShort(i);
         }
         return output;
     }
 
-    public ShortSet asSet() {
-        return new ShortOpenHashSet(data);
-    }
-
-    public boolean contains(short value) {
-        return data.contains(value);
-    }
-
-    public Stats stats() {
-        FloatColumn values = new FloatColumn(name(), asFloatArray());
-        return Stats.create(values);
-    }
-
-    public ShortArrayList data() {
-        return data;
+    @Override
+    public int compare(Short o1, Short o2) {
+        return Short.compare(o1, o2);
     }
 
     @Override
-    public Selection isMissing() {
-        return select(isMissing);
+    public ShortColumn set(int i, Short val) {
+        return set(i, (short) val);
+    }
+
+    public ShortColumn set(int i, short val) {
+        data.set(i, val);
+        return this;
     }
 
     @Override
-    public Selection isNotMissing() {
-        return select(isNotMissing);
+    public ShortColumn append(final Column<Short> column) {
+        Preconditions.checkArgument(column.type() == this.type());
+        final ShortColumn numberColumn = (ShortColumn) column;
+        final int size = numberColumn.size();
+        for (int i = 0; i < size; i++) {
+            append(numberColumn.getShort(i));
+        }
+        return this;
     }
 
     @Override
-    public int byteSize() {
-        return BYTE_SIZE;
+    public ShortColumn append(Column<Short> column, int row) {
+        Preconditions.checkArgument(column.type() == this.type());
+        return append(((ShortColumn) column).getShort(row));
     }
 
-    /**
-     * Returns the contents of the cell at rowNumber as a byte[]
-     */
+    @Override
+    public ShortColumn set(int row, Column<Short> column, int sourceRow) {
+        Preconditions.checkArgument(column.type() == this.type());
+        return set(row, ((ShortColumn) column).getShort(sourceRow));
+    }
+
+    @Override
+    public ShortColumn appendMissing() {
+        return append(ShortColumnType.missingValueIndicator());
+    }
+
     @Override
     public byte[] asBytes(int rowNumber) {
-        return ByteBuffer.allocate(2).putShort(get(rowNumber)).array();
+        return ByteBuffer.allocate(COLUMN_TYPE.byteSize()).putShort(getShort(rowNumber)).array();
     }
 
     @Override
-    public ShortColumn difference() {
-        ShortColumn returnValue = new ShortColumn(this.name(), this.size());
-        returnValue.append(ShortColumn.MISSING_VALUE);
-        for (int current = 0; current < this.size(); current++) {
-            if (current + 1 < this.size()) {
-                int currentValue = this.get(current);
-                int nextValue = this.get(current + 1);
-                if (current == ShortColumn.MISSING_VALUE || nextValue == ShortColumn.MISSING_VALUE) {
-                    returnValue.append(ShortColumn.MISSING_VALUE);
-                } else {
-                    returnValue.append((short) (nextValue - currentValue));
-                }
+    public int countUnique() {
+        ShortSet uniqueElements = new ShortOpenHashSet();
+        for (int i = 0; i < size(); i++) {
+            short val = getShort(i);
+            if (!isMissingValue(val)) {
+                uniqueElements.add(val);
             }
         }
-        return returnValue;
+        return uniqueElements.size();
+    }
+
+    /**
+     * Returns the value at the given index. The actual value is returned if the ColumnType is INTEGER
+     *
+     * Returns the closest {@code int} to the argument, with ties
+     * rounding to positive infinity.
+     *
+     * <p>
+     * Special cases:
+     * <p>
+     * Special cases:
+     * <ul>
+     *   <li>If the argument is NaN, the result is 0.
+     *   <li>If the argument is positive infinity or any value greater than or
+     *     equal to the value of {@code Integer.MAX_VALUE}, an error will be thrown
+     * </ul>
+     *
+     * @param   row the index of the value to be rounded to an integer.
+     * @return  the value of the argument rounded to the nearest
+     *          {@code int} value.
+     * @throws  ClassCastException if the absolute value of the value to be rounded is too large to be cast to an int
+     */
+    public int getInt(int row) {
+        return data.getShort(row);
     }
 
     @Override
-    public int[] asIntArray() {
-        int[] output = new int[data.size()];
-        for (int i = 0; i < data.size(); i++) {
-            output[i] = data.getShort(i);
+    public double getDouble(int row) {
+        short value = data.getShort(row);
+        if (isMissingValue(value)) {
+            return DoubleColumnType.missingValueIndicator();
         }
-        return output;
+        return value;
+    }
+
+    public boolean isMissingValue(short value) {
+        return ShortColumnType.isMissingValue(value);
+    }
+
+    @Override
+    public boolean isMissing(int rowNumber) {
+        return isMissingValue(getShort(rowNumber));
+    }
+
+    @Override
+    public Column<Short> setMissing(int i) {
+        return set(i, ShortColumnType.missingValueIndicator());
+    }
+
+    @Override
+    public void sortAscending() {
+        ShortArrays.parallelQuickSort(data.elements());
+    }
+
+    @Override
+    public void sortDescending() {
+        ShortArrays.parallelQuickSort(data.elements(), descendingComparator);
+    }
+
+    @Override
+    public ShortColumn appendObj(Object obj) {
+        if (obj == null) {
+            return appendMissing();
+        }
+        if (obj instanceof Short) {
+            return append((short) obj);
+        }
+        throw new IllegalArgumentException("Could not append " + obj.getClass());
+    }
+
+    @Override
+    public ShortColumn appendCell(final String value) {
+        try {
+            return append(ShortColumnType.DEFAULT_PARSER.parseShort(value));
+        } catch (final NumberFormatException e) {
+            throw new NumberFormatException("Error adding value to column " + name() + ": " + e.getMessage());
+        }
+    }
+
+    @Override
+    public ShortColumn appendCell(final String value, AbstractParser<?> parser) {
+        try {
+            return append(parser.parseShort(value));
+        } catch (final NumberFormatException e) {
+            throw new NumberFormatException("Error adding value to column " + name()  + ": " + e.getMessage());
+        }
+    }
+
+    @Override
+    public String getUnformattedString(final int row) {
+        final int value = getInt(row);
+        if (IntColumnType.isMissingValue(value)) {
+            return "";
+        }
+        return String.valueOf(value);
+    }
+
+    @Override
+    public ShortColumn inRange(int start, int end) {
+        return (ShortColumn) super.inRange(start, end);
+    }
+
+    @Override
+    public ShortColumn where(Selection selection) {
+        return (ShortColumn) super.where(selection);
+    }
+
+    @Override
+    public ShortColumn lead(int n) {
+        return (ShortColumn) super.lead(n);
+    }
+
+    @Override
+    public ShortColumn setName(String name) {
+        return (ShortColumn) super.setName(name);
+    }
+
+    @Override
+    public ShortColumn filter(Predicate<? super Short> test) {
+        return (ShortColumn) super.filter(test);
+    }
+
+    @Override
+    public ShortColumn sorted(Comparator<? super Short> comp) {
+        return (ShortColumn) super.sorted(comp);
+    }
+
+    @Override
+    public ShortColumn map(Function<? super Short, ? extends Short> fun) {
+        return (ShortColumn) super.map(fun);
+    }
+
+    @Override
+    public ShortColumn min(Column<Short> other) {
+        return (ShortColumn) super.min(other);
+    }
+
+    @Override
+    public ShortColumn max(Column<Short> other) {
+        return (ShortColumn) super.max(other);
+    }
+
+    @Override
+    public ShortColumn set(Selection condition, Column<Short> other) {
+        return (ShortColumn) super.set(condition, other);
+    }
+
+    @Override
+    public ShortColumn set(Selection rowSelection, Short newValue) {
+        return (ShortColumn) super.set(rowSelection, newValue);
+    }
+
+    @Override
+    public ShortColumn first(int numRows) {
+        return (ShortColumn) super.first(numRows);
+    }
+
+    @Override
+    public ShortColumn last(int numRows) {
+        return (ShortColumn) super.last(numRows);
+    }
+
+    @Override
+    public ShortColumn sampleN(int n) {
+        return (ShortColumn) super.sampleN(n);
+    }
+
+    @Override
+    public ShortColumn sampleX(double proportion) {
+        return (ShortColumn) super.sampleX(proportion);
     }
 
     /**
-     * Returns a new column with a cumulative sum calculated
+     * Returns a new LongColumn containing a value for each value in this column
+     *
+     * A widening primitive conversion from short to long does not lose any information at all;
+     * the numeric value is preserved exactly.
+     *
+     * A missing value in the receiver is converted to a missing value in the result
      */
-    public ShortColumn cumSum() {
-        short total = 0;
-        ShortColumn newColumn = new ShortColumn(name() + "[cumSum]", size());
-        for (short value : this) {
-            if (isMissing(value)) {
-                newColumn.append(MISSING_VALUE);
-            } else {
-                total += value;
-                newColumn.append(total);
-            }
+    @Override
+    public LongColumn asLongColumn() {
+        LongArrayList values = new LongArrayList();
+        for (int f : data) {
+            values.add(f);
         }
-        return newColumn;
+        values.trim();
+        return LongColumn.create(this.name(), values.elements());
     }
 
     /**
-     * Returns a new column with a cumulative product calculated
+     * Returns a new FloatColumn containing a value for each value in this column, truncating if necessary.
+     *
+     * A widening primitive conversion from an int to a float does not lose information about the overall magnitude
+     * of a numeric value. It may, however, result in loss of precision - that is, the result may lose some of the
+     * least significant bits of the value. In this case, the resulting floating-point value will be a correctly
+     * rounded version of the integer value, using IEEE 754 round-to-nearest mode.
+     *
+     * Despite the fact that a loss of precision may occur, a widening primitive conversion never results in a
+     * run-time exception.
+     *
+     * A missing value in the receiver is converted to a missing value in the result
      */
-    public ShortColumn cumProd() {
-        short total = 1;
-        ShortColumn newColumn = new ShortColumn(name() + "[cumProd]", size());
-        for (short value : this) {
-            if (isMissing(value)) {
-                newColumn.append(MISSING_VALUE);
-            } else {
-                total *= value;
-                newColumn.append(total);
-            }
+    @Override
+    public FloatColumn asFloatColumn() {
+        FloatArrayList values = new FloatArrayList();
+        for (int d : data) {
+            values.add(d);
         }
-        return newColumn;
+        values.trim();
+        return FloatColumn.create(this.name(), values.elements());
     }
 
     /**
-     * Returns a new column with a percent change calculated
+     * Returns a new DoubleColumn containing a value for each value in this column, truncating if necessary.
+     *
+     * A widening primitive conversion from an int to a double does not lose information about the overall magnitude
+     * of a numeric value. It may, however, result in loss of precision - that is, the result may lose some of the
+     * least significant bits of the value. In this case, the resulting floating-point value will be a correctly
+     * rounded version of the integer value, using IEEE 754 round-to-nearest mode.
+     *
+     * Despite the fact that a loss of precision may occur, a widening primitive conversion never results in a
+     * run-time exception.
+     *
+     * A missing value in the receiver is converted to a missing value in the result
      */
-    public FloatColumn pctChange() {
-        FloatColumn newColumn = new FloatColumn(name() + "[pctChange]", size());
-        newColumn.append(FloatColumn.MISSING_VALUE);
-        for (int i = 1; i < size(); i++) {
-            newColumn.append((float) get(i) / get(i-1) - 1);
+    @Override
+    public DoubleColumn asDoubleColumn() {
+        DoubleArrayList values = new DoubleArrayList();
+        for (int d : data) {
+            values.add(d);
         }
-        return newColumn;
+        values.trim();
+        return DoubleColumn.create(this.name(), values.elements());
     }
 }

@@ -14,41 +14,49 @@
 
 package tech.tablesaw.io;
 
+import tech.tablesaw.api.Table;
+import tech.tablesaw.io.csv.CsvWriteOptions;
+import tech.tablesaw.io.csv.CsvWriter;
+import tech.tablesaw.io.html.HtmlTableWriter;
+
 import java.io.File;
 import java.io.IOException;
 import java.io.OutputStream;
 import java.io.Writer;
 
-import tech.tablesaw.api.Table;
-import tech.tablesaw.io.csv.CsvWriter;
-import tech.tablesaw.io.html.HtmlTableWriter;
-
 public class DataFrameWriter {
 
-  private final Table table;
+    private final Table table;
 
-  public DataFrameWriter(Table table) {
-      this.table = table;
-  }
+    public DataFrameWriter(Table table) {
+        this.table = table;
+    }
 
-  public void csv(String file) throws IOException {
-      CsvWriter.write(table, file);
-  }
+    public void csv(String file) throws IOException {
+        CsvWriteOptions options = new CsvWriteOptions.Builder(file).build();
+        new CsvWriter(table, options).write();
+    }
 
-  public void csv(File file) throws IOException {
-      CsvWriter.write(table, file);
-  }
+    public void csv(File file) throws IOException {
+        CsvWriteOptions options = new CsvWriteOptions.Builder(file).build();
+        new CsvWriter(table, options).write();
+    }
 
-  public void csv(OutputStream stream) throws IOException {
-    CsvWriter.write(table, stream);
-  }
+    public void csv(CsvWriteOptions options) {
+        new CsvWriter(table, options).write();
+    }
 
-  public void csv(Writer writer) throws IOException {
-    CsvWriter.write(table, writer);
-  }
+    public void csv(OutputStream stream) {
+        CsvWriteOptions options = new CsvWriteOptions.Builder(stream).build();
+        new CsvWriter(table, options).write();
+    }
 
-  public void html(OutputStream stream) throws IOException {
-      HtmlTableWriter.write(table, stream);
-  }
+    public void csv(Writer writer) {
+        CsvWriteOptions options = new CsvWriteOptions.Builder(writer).build();
+        new CsvWriter(table, options).write();
+    }
 
+    public void html(OutputStream stream) {
+        HtmlTableWriter.write(table, stream);
+    }
 }

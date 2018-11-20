@@ -1,384 +1,346 @@
-/*
- * Licensed under the Apache License, Version 2.0 (the "License");
- * you may not use this file except in compliance with the License.
- * You may obtain a copy of the License at
- *
- *     http://www.apache.org/licenses/LICENSE-2.0
- *
- * Unless required by applicable law or agreed to in writing, software
- * distributed under the License is distributed on an "AS IS" BASIS,
- * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
- * See the License for the specific language governing permissions and
- * limitations under the License.
- */
-
 package tech.tablesaw.aggregate;
 
-import it.unimi.dsi.fastutil.doubles.DoubleArrayList;
-import it.unimi.dsi.fastutil.doubles.DoubleList;
 import org.apache.commons.math3.stat.StatUtils;
 import org.apache.commons.math3.stat.descriptive.DescriptiveStatistics;
 import org.apache.commons.math3.stat.descriptive.moment.Kurtosis;
 import org.apache.commons.math3.stat.descriptive.moment.Skewness;
+import tech.tablesaw.api.BooleanColumn;
+import tech.tablesaw.api.DateColumn;
+import tech.tablesaw.api.DateTimeColumn;
+import tech.tablesaw.api.NumericColumn;
+import tech.tablesaw.columns.Column;
+import tech.tablesaw.columns.numbers.DoubleColumnType;
 
-import tech.tablesaw.api.DoubleColumn;
-import tech.tablesaw.api.FloatColumn;
+import java.time.LocalDate;
+import java.time.LocalDateTime;
 
-/**
- * Contains common utilities for double and long types
- */
 public class AggregateFunctions {
 
-    // TODO(lwhite): Re-implement these methods to work natively with float[], instead of converting to double[]
 
-    /**
-     * A function that returns the first item
-     */
-    public static AggregateFunction first = new AggregateFunction() {
+    public static DateTimeAggregateFunction earliestDateTime = new DateTimeAggregateFunction("Earliest Date-Time") {
 
         @Override
-        public String functionName() {
-            return "First";
+        public LocalDateTime summarize(DateTimeColumn column) {
+            return column.min();
         }
+    };
+
+    public static DateAggregateFunction earliestDate = new DateAggregateFunction("Earliest Date") {
 
         @Override
-        public double agg(double[] data) {
-            return data.length == 0 ? Float.NaN : data[0];
+        public LocalDate summarize(DateColumn column) {
+            return column.min();
         }
-    };  
+    };
 
-    /**
-     * A function that returns the last item
-     */
-    public static AggregateFunction last = new AggregateFunction() {
+    public static DateAggregateFunction latestDate = new DateAggregateFunction("Latest Date") {
 
         @Override
-        public String functionName() {
-            return "Last";
+        public LocalDate summarize(DateColumn column) {
+            return column.max();
         }
+    };
+
+    public static DateTimeAggregateFunction latestDateTime = new DateTimeAggregateFunction("Latest Date-Time") {
 
         @Override
-        public double agg(double[] data) {
-            return data.length == 0 ? Float.NaN : data[data.length-1];
+        public LocalDateTime summarize(DateTimeColumn column) {
+            return column.max();
+        }
+    };
+
+    public static BooleanCountFunction countTrue = new BooleanCountFunction("Number True") {
+
+        @Override
+        public Integer summarize(BooleanColumn column) {
+            return column.countTrue();
+        }
+    };
+
+    public static BooleanAggregateFunction allTrue = new BooleanAggregateFunction("All True") {
+
+        @Override
+        public Boolean summarize(BooleanColumn column) {
+            return column.all();
+        }
+    };
+
+    public static BooleanAggregateFunction anyTrue = new BooleanAggregateFunction("Any True") {
+
+        @Override
+        public Boolean summarize(BooleanColumn column) {
+            return column.any();
+        }
+    };
+
+    public static BooleanAggregateFunction noneTrue = new BooleanAggregateFunction("None True") {
+
+        @Override
+        public Boolean summarize(BooleanColumn column) {
+            return column.none();
+        }
+    };
+
+    public static BooleanCountFunction countFalse = new BooleanCountFunction("Number False") {
+        @Override
+        public Integer summarize(BooleanColumn column) {
+            return (column).countFalse();
+        }
+    };
+
+    public static BooleanNumericFunction proportionTrue = new BooleanNumericFunction("Proportion True") {
+        @Override
+        public Double summarize(BooleanColumn column) {
+            return (column).proportionTrue();
+        }
+    };
+
+    public static BooleanNumericFunction proportionFalse = new BooleanNumericFunction("Proportion False") {
+        @Override
+        public Double summarize(BooleanColumn column) {
+            return (column).proportionFalse();
         }
     };
 
     /**
-     * A function that calculates the count of the values in the column param
+     * A function that returns the first item
      */
-    public static AggregateFunction count = new AggregateFunction() {
+    public static NumericAggregateFunction first = new NumericAggregateFunction("First") {
 
         @Override
-        public String functionName() {
-            return "Count";
+        public Double summarize(NumericColumn<?> column) {
+            return column.isEmpty() ? DoubleColumnType.missingValueIndicator() : column.getDouble(0);
         }
+    };
+
+    /**
+     * A function that returns the last item
+     */
+    public static NumericAggregateFunction last = new NumericAggregateFunction("Last") {
 
         @Override
-        public double agg(double[] data) {
-            return data.length;
+        public Double summarize(NumericColumn<?> column) {
+            return column.isEmpty() ? DoubleColumnType.missingValueIndicator() : column.getDouble(column.size() - 1);
         }
-    };  
+    };
+
+    /**
+     * A function that returns the difference between the last and first items
+     */
+    public static NumericAggregateFunction change = new NumericAggregateFunction("Change") {
+
+        @Override
+        public Double summarize(NumericColumn<?> column) {
+            return column.size() < 2 ? DoubleColumnType.missingValueIndicator() : column.getDouble(column.size() - 1) - column.getDouble(0);
+        }
+    };
+
+    /**
+     * A function that returns the difference between the last and first items
+     */
+    public static NumericAggregateFunction pctChange = new NumericAggregateFunction("Percent Change") {
+
+        @Override
+        public Double summarize(NumericColumn<?> column) {
+            return column.size() < 2 ? DoubleColumnType.missingValueIndicator() : (column.getDouble(column.size() - 1) - column.getDouble(0)) / column.getDouble(0);
+        }
+    };    
+ 
+    /**
+     * A function that calculates the count of values in the column excluding missing values
+     */
+    public static CountFunction countNonMissing = new CountFunction("Count") {
+
+        @Override
+        public Integer summarize(Column<?> column) {
+            return column.size() - column.countMissing();
+        }
+    };
+
+    /**
+     * A function that calculates the count of values in the column excluding missing values. A synonym for countNonMissing
+     */
+    public static final CountFunction count = countNonMissing;
+
+    /**
+     * A function that calculates the count of values in the column excluding missing values
+     */
+    public static CountFunction countMissing = new CountFunction("Missing Values") {
+
+        @Override
+        public Integer summarize(Column<?> column) {
+            return column.countMissing();
+        }
+    };
+
+    /**
+     * A function that returns the number of non-missing unique values in the column param
+     */
+    public static CountFunction countUnique = new CountFunction("Count Unique") {
+
+        @Override
+        public Integer summarize(Column<?> doubles) {
+            return doubles.unique().removeMissing().size();
+        }
+    };
 
     /**
      * A function that calculates the mean of the values in the column param
      */
-    public static AggregateFunction mean = new AggregateFunction() {
+    public static final NumericAggregateFunction mean = new NumericAggregateFunction("Mean") {
 
         @Override
-        public String functionName() {
-            return "Mean";
-        }
-
-        @Override
-        public double agg(double[] data) {
-            return StatUtils.mean(removeMissing(data));
+        public Double summarize(NumericColumn<?> column) {
+            return StatUtils.mean(removeMissing(column));
         }
     };
 
     /**
      * A function that calculates the sum of the values in the column param
      */
-    public static AggregateFunction sum = new AggregateFunction() {
+    public static final NumericAggregateFunction sum = new NumericAggregateFunction("Sum") {
 
         @Override
-        public String functionName() {
-            return "Sum";
-        }
-
-        @Override
-        public double agg(double[] data) {
-            return StatUtils.sum(removeMissing(data));
-        }
-
-        @Override
-        public double agg(FloatColumn floatColumn) {
-            float sum;
-            sum = 0.0f;
-            for (float value : floatColumn) {
-                if (value != Float.NaN) {
-                    sum += value;
-                }
-            }
-            return sum;
-        }
-
-        @Override
-        public double agg(DoubleColumn floatColumn) {
-            float sum;
-            sum = 0.0f;
-            for (double value : floatColumn) {
-                if (value != Float.NaN) {
-                    sum += value;
-                }
-            }
-            return sum;
+        public Double summarize(NumericColumn<?> column) {
+            return StatUtils.sum(removeMissing(column));
         }
     };
 
-    public static AggregateFunction median = new AggregateFunction() {
+    public static final NumericAggregateFunction median = new NumericAggregateFunction("Median") {
 
         @Override
-        public String functionName() {
-            return "Median";
-        }
-
-        @Override
-        public double agg(double[] data) {
-            return percentile(data, 50.0);
+        public Double summarize(NumericColumn<?> column) {
+            return percentile(column, 50.0);
         }
     };
 
-    public static AggregateFunction n = new AggregateFunction() {
+    public static final CountFunction countWithMissing = new CountFunction("Count (incl. missing)") {
 
         @Override
-        public String functionName() {
-            return "N";
-        }
-
-        //TODO: Consider whether we should provide a count without missing values
-        @Override
-        public double agg(double[] data) {
-            return data.length;
+        public Integer summarize(Column<?> column) {
+            return column.size();
         }
     };
 
-    public static AggregateFunction quartile1 = new AggregateFunction() {
+    public static final NumericAggregateFunction quartile1 = new NumericAggregateFunction("First Quartile") {
 
         @Override
-        public String functionName() {
-            return "First Quartile";
-        }
-
-        @Override
-        public double agg(double[] data) {
-            return percentile(data, 25.0);
+        public Double summarize(NumericColumn<?> column) {
+            return percentile(column, 25.0);
         }
     };
 
-    public static AggregateFunction quartile3 = new AggregateFunction() {
+    public static final NumericAggregateFunction quartile3 = new NumericAggregateFunction("Third Quartile") {
 
         @Override
-        public String functionName() {
-            return "Third Quartile";
-        }
-
-        @Override
-        public double agg(double[] data) {
-            return percentile(data, 75.0);
+        public Double summarize(NumericColumn<?> column) {
+            return percentile(column, 75.0);
         }
     };
 
-    public static AggregateFunction percentile90 = new AggregateFunction() {
+    public static final NumericAggregateFunction percentile90 = new NumericAggregateFunction("90th Percentile") {
 
         @Override
-        public String functionName() {
-            return "90th Percentile";
-        }
-
-        @Override
-        public double agg(double[] data) {
-            return percentile(data, 90.0);
+        public Double summarize(NumericColumn<?> column) {
+            return percentile(column, 90.0);
         }
     };
 
-    public static AggregateFunction percentile95 = new AggregateFunction() {
+    public static final NumericAggregateFunction percentile95 = new NumericAggregateFunction("95th Percentile") {
 
         @Override
-        public String functionName() {
-            return "95th Percentile";
-        }
-
-        @Override
-        public double agg(double[] data) {
-            return percentile(data, 95.0);
+        public Double summarize(NumericColumn<?> column) {
+            return percentile(column, 95.0);
         }
     };
 
-    public static AggregateFunction percentile99 = new AggregateFunction() {
+    public static final NumericAggregateFunction percentile99 = new NumericAggregateFunction("99th Percentile") {
 
         @Override
-        public String functionName() {
-            return "99th Percentile";
-        }
-
-        @Override
-        public double agg(double[] data) {
-            return percentile(data, 99.0);
+        public Double summarize(NumericColumn<?> column) {
+            return percentile(column, 99.0);
         }
     };
 
-    public static AggregateFunction range = new AggregateFunction() {
+    public static final NumericAggregateFunction range = new NumericAggregateFunction("Range") {
 
         @Override
-        public String functionName() {
-            return "Range";
-        }
-
-        @Override
-        public double agg(double[] data) {
-            data = removeMissing(data);
+        public Double summarize(NumericColumn<?> column) {
+            double[] data = removeMissing(column);
             return StatUtils.max(data) - StatUtils.min(data);
         }
     };
 
-    public static AggregateFunction min = new AggregateFunction() {
+    public static final NumericAggregateFunction min = new NumericAggregateFunction("Min") {
 
         @Override
-        public String functionName() {
-            return "Min";
-        }
-
-        @Override
-        public double agg(double[] data) {
-            return StatUtils.min(removeMissing(data));
-        }
-
-        @Override
-        public double agg(FloatColumn data) {
-            if (data.size() == 0) {
-                return Float.NaN;
-            }
-            float min = data.firstElement();
-            for (float value : data) {
-                if (!Float.isNaN(value)) {
-                    min = (min < value) ? min : value;
-                }
-            }
-            return min;
+        public Double summarize(NumericColumn<?> column) {
+            return StatUtils.min(removeMissing(column));
         }
     };
 
-    public static AggregateFunction max = new AggregateFunction() {
+    public static final NumericAggregateFunction max = new NumericAggregateFunction("Max") {
 
         @Override
-        public String functionName() {
-            return "Max";
-        }
-
-        @Override
-        public double agg(double[] data) {
-            return StatUtils.max(removeMissing(data));
+        public Double summarize(NumericColumn<?> column) {
+            return StatUtils.max(removeMissing(column));
         }
     };
 
-    public static AggregateFunction product = new AggregateFunction() {
+    public static final NumericAggregateFunction product = new NumericAggregateFunction("Product") {
 
         @Override
-        public String functionName() {
-            return "Product";
-        }
-
-        @Override
-        public double agg(double[] data) {
-            return StatUtils.product(removeMissing(data));
-        }
-
-        @Override
-        public double agg(FloatColumn data) {
-            float product = 1.0f;
-            boolean empty = true;
-            for (float value : data) {
-                if (value != Float.NaN) {
-                    empty = false;
-                    product *= value;
-                }
-            }
-            if (empty) {
-                return Float.NaN;
-            }
-            return product;
+        public Double summarize(NumericColumn<?> column) {
+            return StatUtils.product(removeMissing(column));
         }
     };
 
-    public static AggregateFunction geometricMean = new AggregateFunction() {
+    public static final NumericAggregateFunction geometricMean = new NumericAggregateFunction("Geometric Mean") {
 
         @Override
-        public String functionName() {
-            return "Geometric Mean";
-        }
-
-        @Override
-        public double agg(double[] data) {
-            return StatUtils.geometricMean(removeMissing(data));
+        public Double summarize(NumericColumn<?> column) {
+            return StatUtils.geometricMean(removeMissing(column));
         }
     };
 
-    public static AggregateFunction populationVariance = new AggregateFunction() {
+    public static final NumericAggregateFunction populationVariance = new NumericAggregateFunction("Population Variance") {
 
         @Override
-        public String functionName() {
-            return "Population Variance";
-        }
-
-        @Override
-        public double agg(double[] data) {
-            return StatUtils.populationVariance(removeMissing(data));
+        public Double summarize(NumericColumn<?> column) {
+            return StatUtils.populationVariance(removeMissing(column));
         }
     };
 
     /**
      * Returns the quadratic mean, aka, the root-mean-square
      */
-    public static AggregateFunction quadraticMean = new AggregateFunction() {
+    public static final NumericAggregateFunction quadraticMean = new NumericAggregateFunction("Quadratic Mean") {
 
         @Override
-        public String functionName() {
-            return "Quadratic Mean";
-        }
-
-        @Override
-        public double agg(double[] data) {
-            return new DescriptiveStatistics(removeMissing(data)).getQuadraticMean();
+        public Double summarize(NumericColumn<?> column) {
+            return new DescriptiveStatistics(removeMissing(column)).getQuadraticMean();
         }
     };
 
-    public static AggregateFunction kurtosis = new AggregateFunction() {
+    public static final NumericAggregateFunction kurtosis = new NumericAggregateFunction("Kurtosis") {
 
         @Override
-        public String functionName() {
-            return "Kurtosis";
-        }
-
-        @Override
-        public double agg(double[] data) {
-            return new Kurtosis().evaluate(removeMissing(data), 0, data.length);
+        public Double summarize(NumericColumn<?> column) {
+            double[] data = removeMissing(column);
+            return new Kurtosis().evaluate(data, 0, data.length);
         }
     };
 
-    public static AggregateFunction skewness = new AggregateFunction() {
+    public static final NumericAggregateFunction skewness = new NumericAggregateFunction("Skewness") {
 
         @Override
-        public String functionName() {
-            return "Skewness";
-        }
-
-        @Override
-        public double agg(double[] data) {
-            return new Skewness().evaluate(removeMissing(data), 0, data.length);
+        public Double summarize(NumericColumn<?> column) {
+            double[] data = removeMissing(column);
+            return new Skewness().evaluate(data, 0, data.length);
         }
     };
 
-    public static AggregateFunction sumOfSquares = new AggregateFunction() {
+    public static final NumericAggregateFunction sumOfSquares = new NumericAggregateFunction("Sum of Squares") {
 
         @Override
         public String functionName() {
@@ -386,97 +348,53 @@ public class AggregateFunctions {
         }
 
         @Override
-        public double agg(double[] data) {
-            return StatUtils.sumSq(removeMissing(data));
+        public Double summarize(NumericColumn<?> column) {
+            return StatUtils.sumSq(removeMissing(column));
         }
     };
 
-    public static AggregateFunction sumOfLogs = new AggregateFunction() {
+    public static final NumericAggregateFunction sumOfLogs = new NumericAggregateFunction("Sum of Logs") {
 
         @Override
-        public String functionName() {
-            return "Sum of Logs";
-        }
-
-        @Override
-        public double agg(double[] data) {
-            return StatUtils.sumLog(removeMissing(data));
+        public Double summarize(NumericColumn<?> column) {
+            return StatUtils.sumLog(removeMissing(column));
         }
     };
 
-    public static AggregateFunction variance = new AggregateFunction() {
+    public static final NumericAggregateFunction variance = new NumericAggregateFunction("Variance") {
 
         @Override
-        public String functionName() {
-            return "Variance";
-        }
-
-        @Override
-        public double agg(double[] data) {
-            return StatUtils.variance(removeMissing(data));
-        }
-
-        /**
-         * Returns the (sample) variance of the available values.
-         * <p>
-         * <p>This method returns the bias-corrected sample variance (using {@code n - 1} in
-         * the denominator).
-         *
-         * @return The variance, Double.NaN if no values have been added
-         * or 0.0 for a single value set.
-         */
-        @Override
-        public double agg(FloatColumn column) {
-            double avg = mean.agg(column);
-            double sumSquaredDiffs = 0.0f;
-            for (float value : column) {
-                double diff = value - avg;
-                double sqrdDiff = diff * diff;
-                sumSquaredDiffs += sqrdDiff;
-            }
-            return sumSquaredDiffs / (column.size() - 1);
+        public Double summarize(NumericColumn<?> column) {
+            double[] values = removeMissing(column);
+            return StatUtils.variance(values);
         }
     };
 
-    public static AggregateFunction stdDev = new AggregateFunction() {
+    public static final NumericAggregateFunction stdDev = new NumericAggregateFunction("Std. Deviation") {
 
         @Override
-        public String functionName() {
-            return "Std. Deviation";
+        public Double summarize(NumericColumn<?> column) {
+            return Math.sqrt(StatUtils.variance(removeMissing(column)));
         }
-
-        @Override
-        public double agg(double[] data) {
-            return Math.sqrt(StatUtils.variance(removeMissing(data)));
-        }
-
     };
 
-    public static double percentile(double[] data, double percentile) {
+    public static final NumericAggregateFunction standardDeviation = stdDev;
+
+    public static Double percentile(NumericColumn<?> data, Double percentile) {
         return StatUtils.percentile(removeMissing(data), percentile);
     }
 
-
-    private static double[] removeMissing(double[] data) {
-        DoubleList doubleArray = new DoubleArrayList();
-        for (double d : data) {
-            if (isNotMissing(d)) {
-                doubleArray.add(d);
-            }
-        }
-        return doubleArray.toDoubleArray();
-    }
-
-    private static boolean isNotMissing(double value) {
-        return ! Double.isNaN(value);
+    private static double[] removeMissing(NumericColumn<?> column) {
+        NumericColumn<?> numericColumn = (NumericColumn<?>) column.removeMissing();
+        return numericColumn.asDoubleArray();
     }
 
     // TODO(lwhite): These are two column reductions. We need a class for that
-    public static double meanDifference(FloatColumn column1, FloatColumn column2) {
+    public static Double meanDifference(NumericColumn<?> column1, NumericColumn<?> column2) {
         return StatUtils.meanDifference(column1.asDoubleArray(), column2.asDoubleArray());
     }
 
-    public static double sumDifference(FloatColumn column1, FloatColumn column2) {
+    public static Double sumDifference(NumericColumn<?> column1, NumericColumn<?> column2) {
         return StatUtils.sumDifference(column1.asDoubleArray(), column2.asDoubleArray());
     }
 }

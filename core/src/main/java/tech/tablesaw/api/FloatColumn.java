@@ -1,821 +1,505 @@
-/*
- * Licensed under the Apache License, Version 2.0 (the "License");
- * you may not use this file except in compliance with the License.
- * You may obtain a copy of the License at
- *
- *     http://www.apache.org/licenses/LICENSE-2.0
- *
- * Unless required by applicable law or agreed to in writing, software
- * distributed under the License is distributed on an "AS IS" BASIS,
- * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
- * See the License for the specific language governing permissions and
- * limitations under the License.
- */
-
 package tech.tablesaw.api;
 
 import com.google.common.base.Preconditions;
-import com.google.common.base.Strings;
+import it.unimi.dsi.fastutil.doubles.DoubleArrayList;
 import it.unimi.dsi.fastutil.floats.FloatArrayList;
 import it.unimi.dsi.fastutil.floats.FloatArrays;
 import it.unimi.dsi.fastutil.floats.FloatComparator;
-import it.unimi.dsi.fastutil.floats.FloatIterable;
-import it.unimi.dsi.fastutil.floats.FloatIterator;
+import it.unimi.dsi.fastutil.floats.FloatListIterator;
 import it.unimi.dsi.fastutil.floats.FloatOpenHashSet;
 import it.unimi.dsi.fastutil.floats.FloatSet;
-import it.unimi.dsi.fastutil.ints.IntComparator;
-import tech.tablesaw.aggregate.AggregateFunctions;
-import tech.tablesaw.columns.AbstractColumn;
+import it.unimi.dsi.fastutil.ints.IntArrayList;
+import it.unimi.dsi.fastutil.longs.LongArrayList;
+import it.unimi.dsi.fastutil.shorts.ShortArrayList;
 import tech.tablesaw.columns.Column;
-import tech.tablesaw.filtering.FloatBiPredicate;
-import tech.tablesaw.filtering.FloatPredicate;
-import tech.tablesaw.io.TypeUtils;
-import tech.tablesaw.store.ColumnMetadata;
-import tech.tablesaw.util.BitmapBackedSelection;
-import tech.tablesaw.util.Selection;
-import tech.tablesaw.util.Stats;
-
-import static tech.tablesaw.aggregate.AggregateFunctions.*;
-import static tech.tablesaw.columns.FloatColumnUtils.*;
+import tech.tablesaw.columns.AbstractParser;
+import tech.tablesaw.columns.numbers.DoubleColumnType;
+import tech.tablesaw.columns.numbers.FloatColumnType;
+import tech.tablesaw.selection.Selection;
 
 import java.nio.ByteBuffer;
-import java.util.Arrays;
-import java.util.regex.Matcher;
-import java.util.regex.Pattern;
+import java.util.Comparator;
+import java.util.Iterator;
+import java.util.function.Function;
+import java.util.function.Predicate;
 
-/**
- * A column in a base table that contains float values
- */
-public class FloatColumn extends AbstractColumn implements FloatIterable, NumericColumn {
+public class FloatColumn extends NumberColumn<Float> {
 
-    public static final float MISSING_VALUE = (Float) ColumnType.FLOAT.getMissingValue();
-    private static final int BYTE_SIZE = 4;
-    private static final Pattern COMMA_PATTERN = Pattern.compile(",");
-    private static final int DEFAULT_ARRAY_SIZE = 128;
+    private static final FloatColumnType COLUMN_TYPE = ColumnType.FLOAT;
 
     /**
-     * Compares two floats, such that a sort based on this comparator would sort in descending order
+     * Compares two doubles, such that a sort based on this comparator would sort in descending order
      */
-    private FloatComparator reverseFloatComparator = new FloatComparator() {
+    private final FloatComparator descendingComparator = (o2, o1) -> (Float.compare(o1, o2));
 
-        @Override
-        public int compare(Float o2, Float o1) {
-            return (o1 < o2 ? -1 : (o1.equals(o2) ? 0 : 1));
-        }
+    private final FloatArrayList data;    
 
-        @Override
-        public int compare(float o2, float o1) {
-            return (o1 < o2 ? -1 : (o1 == o2 ? 0 : 1));
-        }
-    };
-
-    private FloatArrayList data;
-
-    private final IntComparator comparator = new IntComparator() {
-
-        @Override
-        public int compare(Integer r1, Integer r2) {
-            float f1 = data.getFloat(r1);
-            float f2 = data.getFloat(r2);
-            return Float.compare(f1, f2);
-        }
-
-        public int compare(int r1, int r2) {
-            float f1 = data.getFloat(r1);
-            float f2 = data.getFloat(r2);
-            return Float.compare(f1, f2);
-        }
-    };
-
-    public FloatColumn(String name) {
-        this(name, new FloatArrayList(DEFAULT_ARRAY_SIZE));
-    }
-
-    public FloatColumn(String name, int initialSize) {
-        this(name, new FloatArrayList(initialSize));
-    }
-
-    public FloatColumn(String name, float[] arr) {
-      this(name, new FloatArrayList(arr));
-    }
-
-    public FloatColumn(String name, FloatArrayList data) {
-        super(name);
+    private FloatColumn(final String name, FloatArrayList data) {
+        super(COLUMN_TYPE, name);
         this.data = data;
     }
 
-    public FloatColumn(ColumnMetadata metadata) {
-        super(metadata);
-        data = new FloatArrayList(metadata.getSize());
+    public static FloatColumn create(final String name) {
+        return new FloatColumn(name, new FloatArrayList());
     }
 
-    protected static boolean isMissing(float value) {
-      return Float.isNaN(value);
+    public static FloatColumn create(final String name, final float[] arr) {
+        return new FloatColumn(name, new FloatArrayList(arr));
     }
-    
-    /**
-     * Returns a float that is parsed from the given String
-     * <p>
-     * We remove any commas before parsing
-     */
-    public static float convert(String stringValue) {
-        if (Strings.isNullOrEmpty(stringValue) || TypeUtils.MISSING_INDICATORS.contains(stringValue)) {
-            return MISSING_VALUE;
+
+    public static FloatColumn create(final String name, final int initialSize) {
+        FloatColumn column = new FloatColumn(name, new FloatArrayList(initialSize));
+        for (int i = 0; i < initialSize; i++) {
+            column.appendMissing();
         }
-        Matcher matcher = COMMA_PATTERN.matcher(stringValue);
-        return Float.parseFloat(matcher.replaceAll(""));
+        return column;
     }
 
+    @Override
+    public FloatColumn createCol(final String name, final int initialSize) {
+        return create(name, initialSize);
+    }
+
+    @Override
+    public FloatColumn createCol(final String name) {
+        return create(name);
+    }
+
+    @Override
+    public Float get(int index) {
+        return data.getFloat(index);
+    }
+
+    @Override
+    public FloatColumn subset(final int[] rows) {
+        final FloatColumn c = this.emptyCopy();
+        for (final int row : rows) {
+            c.append(getFloat(row));
+        }
+        return c;
+    }
+
+    @Override
     public int size() {
         return data.size();
     }
 
     @Override
-    public Table summary() {
-        return stats().asTable();
-    }
-
-    public Stats stats() {
-        return Stats.create(this);
+    public void clear() {
+        data.clear();
     }
 
     @Override
-    public int countUnique() {
-        FloatSet floats = new FloatOpenHashSet();
+    public FloatColumn unique() {
+        final FloatSet values = new FloatOpenHashSet();
         for (int i = 0; i < size(); i++) {
-            floats.add(data.getFloat(i));
+            if (!isMissing(i)) {
+                values.add(getFloat(i));
+            }
         }
-        return floats.size();
+        final FloatColumn column = FloatColumn.create(name() + " Unique values", values.size());
+        for (float value : values) {
+            column.append(value);
+        }
+        return column;
     }
 
-    /**
-     * Returns the largest ("top") n values in the column
-     *
-     * @param n The maximum number of records to return. The actual number will be smaller if n is greater than the
-     *          number of observations in the column
-     * @return A list, possibly empty, of the largest observations
-     */
-    public FloatArrayList top(int n) {
+    @Override
+    public FloatColumn top(int n) {
         FloatArrayList top = new FloatArrayList();
         float[] values = data.toFloatArray();
-        FloatArrays.parallelQuickSort(values, reverseFloatComparator);
+        FloatArrays.parallelQuickSort(values, descendingComparator);
         for (int i = 0; i < n && i < values.length; i++) {
             top.add(values[i]);
         }
-        return top;
+        return new FloatColumn(name() + "[Top " + n  + "]", top);
     }
 
-    /**
-     * Returns the smallest ("bottom") n values in the column
-     *
-     * @param n The maximum number of records to return. The actual number will be smaller if n is greater than the
-     *          number of observations in the column
-     * @return A list, possibly empty, of the smallest n observations
-     */
-    public FloatArrayList bottom(int n) {
+    @Override
+    public FloatColumn bottom(final int n) {
         FloatArrayList bottom = new FloatArrayList();
         float[] values = data.toFloatArray();
         FloatArrays.parallelQuickSort(values);
         for (int i = 0; i < n && i < values.length; i++) {
             bottom.add(values[i]);
         }
-        return bottom;
+        return new FloatColumn(name() + "[Bottoms " + n  + "]", bottom);
     }
 
     @Override
-    public FloatColumn unique() {
-        FloatSet floats = new FloatOpenHashSet();
+    public FloatColumn lag(int n) {
+        final int srcPos = n >= 0 ? 0 : 0 - n;
+        final float[] dest = new float[size()];
+        final int destPos = n <= 0 ? 0 : n;
+        final int length = n >= 0 ? size() - n : size() + n;
+
         for (int i = 0; i < size(); i++) {
-            floats.add(data.getFloat(i));
+            dest[i] = FloatColumnType.missingValueIndicator();
         }
-        FloatColumn column = new FloatColumn(name() + " Unique values", floats.size());
-        floats.forEach((double i) -> column.append(i));
-        return column;
-    }
 
-    public FloatArrayList data() {
-        return data;
+        float[] array = data.toFloatArray();
+
+        System.arraycopy(array, srcPos, dest, destPos, length);
+        return new FloatColumn(name() + " lag(" + n + ")", new FloatArrayList(dest));
     }
 
     @Override
-    public ColumnType type() {
-        return ColumnType.FLOAT;
-    }
-
-    public float firstElement() {
-        if (size() > 0) {
-            return data.getFloat(0);
+    public FloatColumn removeMissing() {
+        FloatColumn result = copy();
+        result.clear();
+        FloatListIterator iterator = data.iterator();
+        while (iterator.hasNext()) {
+            final float v = iterator.nextFloat();
+            if (!isMissingValue(v)) {
+                result.append(v);
+            }
         }
-        return MISSING_VALUE;
+        return result;
     }
 
-    // Reduce functions applied to the whole column
-    public double sum() {
-        return sum.agg(this);
+    public FloatColumn append(float i) {
+        data.add(i);
+        return this;
     }
 
-    public double product() {
-        return product.agg(this);
+    public FloatColumn append(Float val) {
+        this.append(val.floatValue());
+        return this;
     }
 
-    public double mean() {
-        return mean.agg(this);
+    @Override
+    public FloatColumn emptyCopy() {
+        return (FloatColumn) super.emptyCopy();
     }
 
-    public double median() {
-        return median.agg(this);
+    @Override
+    public FloatColumn emptyCopy(final int rowSize) {
+        return (FloatColumn) super.emptyCopy(rowSize);
     }
 
-    public double quartile1() {
-        return quartile1.agg(this);
+    @Override
+    public FloatColumn copy() {
+        return new FloatColumn(name(), data.clone());
     }
 
-    public double quartile3() {
-        return quartile3.agg(this);
+    @Override
+    public Iterator<Float> iterator() {
+        return data.iterator();
     }
 
-    public double percentile(double percentile) {
-        return AggregateFunctions.percentile(this.asDoubleArray(), percentile);
+    @Override
+    public Object[] asObjectArray() {
+        final Float[] output = new Float[size()];
+        for (int i = 0; i < size(); i++) {
+            output[i] = getFloat(i);
+        }
+        return output;
     }
 
-    public double range() {
-        return range.agg(this);
+    @Override
+    public int compare(Float o1, Float o2) {
+        return Float.compare(o1, o2);
     }
 
-    public double max() {
-        return max.agg(this);
+    @Override
+    public FloatColumn set(int i, Float val) {
+        return set(i, (float) val);
     }
 
-    public double min() {
-        return min.agg(this);
+    public FloatColumn set(int i, float val) {
+        data.set(i, val);
+        return this;
     }
 
-    public double variance() {
-        return variance.agg(this);
+    @Override
+    public FloatColumn append(final Column<Float> column) {
+        Preconditions.checkArgument(column.type() == this.type());
+        final FloatColumn numberColumn = (FloatColumn) column;
+        final int size = numberColumn.size();
+        for (int i = 0; i < size; i++) {
+            append(numberColumn.getFloat(i));
+        }
+        return this;
     }
 
-    public double populationVariance() {
-        return populationVariance.agg(this);
+    @Override
+    public FloatColumn append(Column<Float> column, int row) {
+        Preconditions.checkArgument(column.type() == this.type());
+        return append(((FloatColumn) column).getFloat(row));
     }
 
-    public double standardDeviation() {
-        return stdDev.agg(this);
+    @Override
+    public FloatColumn set(int row, Column<Float> column, int sourceRow) {
+        Preconditions.checkArgument(column.type() == this.type());
+        return set(row, ((FloatColumn) column).getFloat(sourceRow));
     }
 
-    public double sumOfLogs() {
-        return sumOfLogs.agg(this);
+    @Override
+    public byte[] asBytes(int rowNumber) {
+        return ByteBuffer.allocate(COLUMN_TYPE.byteSize()).putFloat(getFloat(rowNumber)).array();
     }
 
-    // Predicate  functions
-
-    public double sumOfSquares() {
-        return sumOfSquares.agg(this);
+    @Override
+    public int countUnique() {
+        FloatSet uniqueElements = new FloatOpenHashSet();
+        for (int i = 0; i < size(); i++) {
+            if (!isMissing(i)) {
+                uniqueElements.add(getFloat(i));
+            }
+        }
+        return uniqueElements.size();
     }
 
-    public double geometricMean() {
-        return geometricMean.agg(this);
+    @Override
+    public double getDouble(int row) {
+        float value = data.getFloat(row);
+        if (isMissingValue(value)) {
+            return DoubleColumnType.missingValueIndicator();
+        }
+        return value;
     }
 
     /**
-     * Returns the quadraticMean, aka the root-mean-square, for all values in this column
+     * Returns a float representation of the data at the given index. Some precision may be lost, and if the value is
+     * to large to be cast to a float, an exception is thrown.
+     *
+     * @throws  ClassCastException if the value can't be cast to ta float
      */
-    public double quadraticMean() {
-        return quadraticMean.agg(this);
+    public float getFloat(int row) {
+        return data.getFloat(row);
     }
 
-    public double kurtosis() {
-        return kurtosis.agg(this);
+    public boolean isMissingValue(float value) {
+        return FloatColumnType.isMissingValue(value);
     }
 
-    public double skewness() {
-        return skewness.agg(this);
+    @Override
+    public boolean isMissing(int rowNumber) {
+        return isMissingValue(getFloat(rowNumber));
     }
 
-    /**
-     * Adds the given float to this column
-     */
-    public void append(float f) {
-        data.add(f);
+    @Override
+    public Column<Float> setMissing(int i) {
+        return set(i, FloatColumnType.missingValueIndicator());
     }
 
-    /**
-     * Adds the given double to this column, after casting it to a float
-     */
-    public void append(double d) {
-        data.add((float) d);
+    @Override
+    public void sortAscending() {
+        FloatArrays.parallelQuickSort(data.elements());
     }
 
-    public Selection isLessThan(float f) {
-        return select(isLessThan, f);
+    @Override
+    public void sortDescending() {
+        FloatArrays.parallelQuickSort(data.elements(), descendingComparator);
     }
 
-    public Selection isZero() {
-        return select(isZero);
+    @Override
+    public FloatColumn appendMissing() {
+        return append(FloatColumnType.missingValueIndicator());
     }
 
-    public Selection isNegative() {
-        return select(isNegative);
-    }
-    public Selection isPositive() {
-        return select(isPositive);
-    }
-    public Selection isNonNegative() {
-        return select(isNonNegative);
-    }
-
-    public Selection isMissing() {
-        return select(isMissing);
+    @Override
+    public FloatColumn appendObj(Object obj) {
+        if (obj == null) {
+            return appendMissing();
+        }
+        if (obj instanceof Float) {
+            return append((float) obj);
+        }
+        throw new IllegalArgumentException("Could not append " + obj.getClass());
     }
 
-    public Selection isNotMissing() {
-        return select(isNotMissing);
+    @Override
+    public FloatColumn appendCell(final String value) {
+        try {
+            return append(FloatColumnType.DEFAULT_PARSER.parseFloat(value));
+        } catch (final NumberFormatException e) {
+            throw new NumberFormatException("Error adding value to column " + name() + ": " + e.getMessage());
+        }
     }
 
-    public Selection isGreaterThan(float f) {
-        return select(isGreaterThan, f);
-    }
-
-    public Selection isGreaterThanOrEqualTo(float f) {
-        return select(isGreaterThanOrEqualTo, f);
-    }
-
-    public Selection isLessThanOrEqualTo(float f) {
-        return select(isLessThanOrEqualTo, f);
-    }
-
-    public Selection isNotEqualTo(float f) {
-      return select(isNotEqualTo, f);
+    @Override
+    public FloatColumn appendCell(final String value, AbstractParser<?> parser) {
+        try {
+            return append(parser.parseFloat(value));
+        } catch (final NumberFormatException e) {
+            throw new NumberFormatException("Error adding value to column " + name()  + ": " + e.getMessage());
+        }
     }    
 
-    public Selection isEqualTo(float f) {
-        return select(isEqualTo, f);
-    }
-
-    public Selection isEqualTo(FloatColumn f) {
-        Selection results = new BitmapBackedSelection();
-        int i = 0;
-        FloatIterator floatIterator = f.iterator();
-        for (float floats : data) {
-            if (floats == floatIterator.nextFloat()) {
-                results.add(i);
-            }
-            i++;
-        }
-        return results;
-    }
-
-    public Selection isGreaterThan(FloatColumn f) {
-        Selection results = new BitmapBackedSelection();
-        int i = 0;
-        FloatIterator floatIterator = f.iterator();
-        for (float floats : data) {
-            if (floats > floatIterator.nextFloat()) {
-                results.add(i);
-            }
-            i++;
-        }
-        return results;
-    }
-
-    public Selection isLessThan(FloatColumn f) {
-        Selection results = new BitmapBackedSelection();
-        int i = 0;
-        FloatIterator floatIterator = f.iterator();
-        for (float floats : data) {
-            if (floats < floatIterator.nextFloat()) {
-                results.add(i);
-            }
-            i++;
-        }
-        return results;
-    }
-
     @Override
-    public String getString(int row) {
-        float value = data.getFloat(row);
-        if (isMissing(value)) {
-            return null;
+    public String getUnformattedString(final int row) {
+        final float value = getFloat(row);
+        if (FloatColumnType.isMissingValue(value)) {
+            return "";
         }
         return String.valueOf(value);
     }
 
     @Override
-    public FloatColumn emptyCopy() {
-        FloatColumn column = new FloatColumn(name());
-        column.setComment(comment());
-        return column;
+    public FloatColumn inRange(int start, int end) {
+        return (FloatColumn) super.inRange(start, end);
     }
 
     @Override
-    public FloatColumn emptyCopy(int rowSize) {
-        FloatColumn column = new FloatColumn(name(), rowSize);
-        column.setComment(comment());
-        return column;
+    public FloatColumn where(Selection selection) {
+        return (FloatColumn) super.where(selection);
     }
 
     @Override
-    public void clear() {
-        data = new FloatArrayList(DEFAULT_ARRAY_SIZE);
+    public FloatColumn lead(int n) {
+        return (FloatColumn) super.lead(n);
     }
 
     @Override
-    public FloatColumn copy() {
-        FloatColumn column = new FloatColumn(name(), data);
-        column.setComment(comment());
-        return column;
+    public FloatColumn setName(String name) {
+        return (FloatColumn) super.setName(name);
     }
 
     @Override
-    public void sortAscending() {
-        Arrays.parallelSort(data.elements());
+    public FloatColumn filter(Predicate<? super Float> test) {
+        return (FloatColumn) super.filter(test);
     }
 
     @Override
-    public void sortDescending() {
-        FloatArrays.parallelQuickSort(data.elements(), reverseFloatComparator);
+    public FloatColumn sorted(Comparator<? super Float> comp) {
+        return (FloatColumn) super.sorted(comp);
     }
 
     @Override
-    public boolean isEmpty() {
-        return data.isEmpty();
+    public FloatColumn map(Function<? super Float, ? extends Float> fun) {
+        return (FloatColumn) super.map(fun);
+    }
+
+    @Override
+    public FloatColumn min(Column<Float> other) {
+        return (FloatColumn) super.min(other);
+    }
+
+    @Override
+    public FloatColumn max(Column<Float> other) {
+        return (FloatColumn) super.max(other);
+    }
+
+    @Override
+    public FloatColumn set(Selection condition, Column<Float> other) {
+        return (FloatColumn) super.set(condition, other);
+    }
+
+    @Override
+    public FloatColumn set(Selection rowSelection, Float newValue) {
+        return (FloatColumn) super.set(rowSelection, newValue);
+    }
+
+    @Override
+    public FloatColumn first(int numRows) {
+        return (FloatColumn) super.first(numRows);
+    }
+
+    @Override
+    public FloatColumn last(int numRows) {
+        return (FloatColumn) super.last(numRows);
+    }
+
+    @Override
+    public FloatColumn sampleN(int n) {
+        return (FloatColumn) super.sampleN(n);
+    }
+
+    @Override
+    public FloatColumn sampleX(double proportion) {
+        return (FloatColumn) super.sampleX(proportion);
     }
 
     /**
-     * Returns the count of missing values in this column
-     */
-    @Override
-    public int countMissing() {
-        int count = 0;
-        for (int i = 0; i < size(); i++) {
-            if (isMissing(get(i))) {
-                count++;
-            }
-        }
-        return count;
-    }
-
-    @Override
-    public void appendCell(String object) {
-        try {
-            append(convert(object));
-        } catch (NumberFormatException nfe) {
-            throw new NumberFormatException(name() + ": " + nfe.getMessage());
-        }
-    }
-
-    /**
-     * Returns the natural log of the values in this column as a new FloatColumn
-     */
-    public FloatColumn logN() {
-        FloatColumn newColumn = new FloatColumn(name() + "[logN]", size());
-
-        for (float value : this) {
-            newColumn.append((float) Math.log(value));
-        }
-        return newColumn;
-    }
-
-    public FloatColumn log10() {
-        FloatColumn newColumn = new FloatColumn(name() + "[log10]", size());
-
-        for (float value : this) {
-            newColumn.append((float) Math.log10(value));
-        }
-        return newColumn;
-    }
-
-    /**
-     * Returns the natural log of the values in this column, after adding 1 to each so that zero
-     * values don't return -Infinity
-     */
-    public FloatColumn log1p() {
-        FloatColumn newColumn = new FloatColumn(name() + "[1og1p]", size());
-        for (float value : this) {
-            newColumn.append((float) Math.log1p(value));
-        }
-        return newColumn;
-    }
-
-    public FloatColumn round() {
-        FloatColumn newColumn = new FloatColumn(name() + "[rounded]", size());
-        for (float value : this) {
-            newColumn.append(Math.round(value));
-        }
-        return newColumn;
-    }
-
-    /**
-     * Returns the rounded values as a IntColumn.
-     */
-    public IntColumn roundInt() {
-        IntColumn newColumn = new IntColumn(name() + "[rounded]", size());
-        for (float value : this) {
-            newColumn.append(Math.round(value));
-        }
-        return newColumn;
-    }
-
-    public FloatColumn abs() {
-        FloatColumn newColumn = new FloatColumn(name() + "[abs]", size());
-        for (float value : this) {
-            newColumn.append(Math.abs(value));
-        }
-        return newColumn;
-    }
-
-    public FloatColumn square() {
-        FloatColumn newColumn = new FloatColumn(name() + "[sq]", size());
-        for (float value : this) {
-            newColumn.append(value * value);
-        }
-        return newColumn;
-    }
-
-    public FloatColumn sqrt() {
-        FloatColumn newColumn = new FloatColumn(name() + "[sqrt]", size());
-        for (float value : this) {
-            newColumn.append((float) Math.sqrt(value));
-        }
-        return newColumn;
-    }
-
-    public FloatColumn cubeRoot() {
-        FloatColumn newColumn = new FloatColumn(name() + "[cbrt]", size());
-        for (float value : this) {
-            newColumn.append((float) Math.cbrt(value));
-        }
-        return newColumn;
-    }
-
-    public FloatColumn cube() {
-        FloatColumn newColumn = new FloatColumn(name() + "[cb]", size());
-        for (float value : this) {
-            newColumn.append(value * value * value);
-        }
-        return newColumn;
-    }
-
-    public FloatColumn remainder(FloatColumn column2) {
-        FloatColumn result = new FloatColumn(name() + " % " + column2.name(), size());
-        for (int r = 0; r < size(); r++) {
-            result.append(get(r) % column2.get(r));
-        }
-        return result;
-    }
-
-    /**
-     * For each item in the column, returns the same number with the sign changed.
-     * For example:
-     * -1.3   returns  1.3,
-     * 2.135 returns -2.135
-     * 0     returns  0
-     */
-    public FloatColumn neg() {
-        FloatColumn newColumn = new FloatColumn(name() + "[neg]", size());
-        for (float value : this) {
-            newColumn.append(value * -1);
-        }
-        return newColumn;
-    }
-
-    /**
-     * Compares the given ints, which refer to the indexes of the floats in this column, according to the values of the
-     * floats themselves
-     */
-    @Override
-    public IntComparator rowComparator() {
-        return comparator;
-    }
-
-    public float get(int index) {
-        return data.getFloat(index);
-    }
-
-    @Override
-    public float getFloat(int index) {
-        return data.getFloat(index);
-    }
-
-    @Override
-    public double getDouble(int index) {
-        float value = data.getFloat(index);
-        return isMissing(value) ? DoubleColumn.MISSING_VALUE : value;
-    }
-
-    public void set(int r, float value) {
-        data.set(r, value);
-    }
-
-    /**
-     * Conditionally update this column, replacing current values with newValue for all rows where the current value
-     * matches the selection criteria
+     * Returns a new LongColumn containing a value for each value in this column, truncating if necessary
      *
-     * Example:
-     * myColumn.set(4.0f, myColumn.isMissing()); // no more missing values
+     * A narrowing primitive conversion such as this one may lose information about the overall magnitude of a
+     * numeric value and may also lose precision and range. Specifically, if the value is too small (a negative value
+     * of large magnitude or negative infinity), the result is the smallest representable value of type long.
+     *
+     * Similarly, if the value is too large (a positive value of large magnitude or positive infinity), the result is the
+     * largest representable value of type long.
+     *
+     * Despite the fact that overflow, underflow, or other loss of information may occur, a narrowing primitive
+     * conversion never results in a run-time exception.
+     *
+     * A missing value in the receiver is converted to a missing value in the result
      */
-    public void set(float newValue, Selection rowSelection) {
-        for (int row : rowSelection) {
-            set(row, newValue);
-        }
-    }
-
-    // TODO(lwhite): Reconsider the implementation of this functionality to allow user to provide a specific max error.
-    // TODO(lwhite): continued: Also see section in Effective Java on floating point comparisons.
-    Selection isCloseTo(float target) {
-        Selection results = new BitmapBackedSelection();
-        int i = 0;
+    @Override
+    public LongColumn asLongColumn() {
+        LongArrayList values = new LongArrayList();
         for (float f : data) {
-            if (Float.compare(f, target) == 0) {
-                results.add(i);
-            }
-            i++;
+            values.add((long) f);
         }
-
-        return results;
+        values.trim();
+        return LongColumn.create(this.name(), values.elements());
     }
 
-    Selection isCloseTo(double target) {
-        Selection results = new BitmapBackedSelection();
-        int i = 0;
-        for (float f : data) {
-            if (Double.compare(f, 0.0) == 0) {
-                results.add(i);
-            }
-            i++;
+    /**
+     * Returns a new IntColumn containing a value for each value in this column, truncating if necessary.
+     *
+     * A narrowing primitive conversion such as this one may lose information about the overall magnitude of a
+     * numeric value and may also lose precision and range. Specifically, if the value is too small (a negative value
+     * of large magnitude or negative infinity), the result is the smallest representable value of type int.
+     *
+     * Similarly, if the value is too large (a positive value of large magnitude or positive infinity), the result is the
+     * largest representable value of type int.
+     *
+     * Despite the fact that overflow, underflow, or other loss of information may occur, a narrowing primitive
+     * conversion never results in a run-time exception.
+     *
+     * A missing value in the receiver is converted to a missing value in the result
+     */
+    @Override
+    public IntColumn asIntColumn() {
+        IntArrayList values = new IntArrayList();
+        for (float d : data) {
+            values.add((int) d);
         }
-        return results;
+        values.trim();
+        return IntColumn.create(this.name(), values.elements());
     }
 
-    public double[] asDoubleArray() {
-        double[] output = new double[data.size()];
-        for (int i = 0; i < data.size(); i++) {
-            output[i] = data.getFloat(i);
+    /**
+     * Returns a new IntColumn containing a value for each value in this column, truncating if necessary.
+     *
+     * A narrowing primitive conversion such as this one may lose information about the overall magnitude of a
+     * numeric value and may also lose precision and range. Specifically, if the value is too small (a negative value
+     * of large magnitude or negative infinity), the result is the smallest representable value of type int.
+     *
+     * Similarly, if the value is too large (a positive value of large magnitude or positive infinity), the result is the
+     * largest representable value of type int.
+     *
+     * Despite the fact that overflow, underflow, or other loss of information may occur, a narrowing primitive
+     * conversion never results in a run-time exception.
+     *
+     * A missing value in the receiver is converted to a missing value in the result
+     */
+    @Override
+    public ShortColumn asShortColumn() {
+        ShortArrayList values = new ShortArrayList();
+        for (float d : data) {
+            values.add((short) d);
         }
-        return output;
+        values.trim();
+        return ShortColumn.create(this.name(), values.elements());
     }
 
+    /**
+     * Returns a new DoubleColumn containing a value for each value in this column.
+     *
+     * No information is lost in converting from the floats to doubles
+     *
+     * A missing value in the receiver is converted to a missing value in the result
+     */
+    @Override
     public DoubleColumn asDoubleColumn() {
-        return new DoubleColumn(name(), asDoubleArray());
-    }
-
-    public String print() {
-        StringBuilder builder = new StringBuilder();
-        builder.append(title());
-        for (Float aData : data) {
-            builder.append(String.valueOf(aData));
-            builder.append('\n');
+        DoubleArrayList values = new DoubleArrayList();
+        for (float d : data) {
+            values.add(d);
         }
-        return builder.toString();
+        values.trim();
+        return DoubleColumn.create(this.name(), values.elements());
     }
-
-    @Override
-    public String toString() {
-        return "Float column: " + name();
-    }
-
-    @Override
-    public void append(Column column) {
-        Preconditions.checkArgument(column.type() == this.type());
-        FloatColumn floatColumn = (FloatColumn) column;
-        for (int i = 0; i < floatColumn.size(); i++) {
-            append(floatColumn.get(i));
-        }
-    }
-
-    @Override
-    public FloatIterator iterator() {
-        return data.iterator();
-    }
-
-    public Selection select(FloatPredicate predicate) {
-        Selection bitmap = new BitmapBackedSelection();
-        for (int idx = 0; idx < data.size(); idx++) {
-            float next = data.getFloat(idx);
-            if (predicate.test(next)) {
-                bitmap.add(idx);
-            }
-        }
-        return bitmap;
-    }
-
-    public Selection select(FloatBiPredicate predicate, float value) {
-        Selection bitmap = new BitmapBackedSelection();
-        for (int idx = 0; idx < data.size(); idx++) {
-            float next = data.getFloat(idx);
-            if (predicate.test(next, value)) {
-                bitmap.add(idx);
-            }
-        }
-        return bitmap;
-    }
-
-    FloatSet asSet() {
-        return new FloatOpenHashSet(data);
-    }
-
-    public boolean contains(float value) {
-        return data.contains(value);
-    }
-
-    @Override
-    public int byteSize() {
-        return BYTE_SIZE;
-    }
-
-    /**
-     * Returns the contents of the cell at rowNumber as a byte[]
-     */
-    @Override
-    public byte[] asBytes(int rowNumber) {
-        return ByteBuffer.allocate(4).putFloat(get(rowNumber)).array();
-    }
-
-    @Override
-    public FloatColumn difference() {
-        FloatColumn returnValue = new FloatColumn(this.name(), this.size());
-        if (data.isEmpty()) {
-            return returnValue;
-        }
-
-        returnValue.append(FloatColumn.MISSING_VALUE);
-        for (int current = 1; current < data.size(); current++) {
-            returnValue.append(subtract(get(current), get(current - 1)));
-        }
-        return returnValue;
-    }
-
-    static float add(float val1, float val2) {
-        if (val1 == MISSING_VALUE || val2 == MISSING_VALUE) {
-            return MISSING_VALUE;
-        }
-        return val1 + val2;
-    }
-
-    static float multiply(float val1, float val2) {
-        if (val1 == MISSING_VALUE || val2 == MISSING_VALUE) {
-            return MISSING_VALUE;
-        }
-        return val1 * val2;
-    }
-
-    static float divide(float val1, float val2) {
-        if (val1 == MISSING_VALUE || val2 == MISSING_VALUE) {
-            return MISSING_VALUE;
-        }
-        return val1 / val2;
-    }
-
-    static float subtract(float val1, float val2) {
-        if (isMissing(val1) || isMissing(val2)) {
-            return MISSING_VALUE;
-        }
-        return val1 - val2;
-    }
-
-    /**
-     * Returns a new column with a cumulative sum calculated
-     */
-    public FloatColumn cumSum() {
-        float total = 0.0f;
-        FloatColumn newColumn = new FloatColumn(name() + "[cumSum]", size());
-        for (float value : this) {
-            if (isMissing(value)) {
-                newColumn.append(MISSING_VALUE);
-            } else {
-                total += value;
-                newColumn.append(total);
-            }
-        }
-        return newColumn;
-    }
-
-    /**
-     * Returns a new column with a cumulative product calculated
-     */
-    public FloatColumn cumProd() {
-        float total = 1.0f;
-        FloatColumn newColumn = new FloatColumn(name() + "[cumProd]", size());
-        for (float value : this) {
-            if (isMissing(value)) {
-                newColumn.append(MISSING_VALUE);
-            } else {
-                total *= value;
-                newColumn.append(total);
-            }
-        }
-        return newColumn;
-    }
-
-    /**
-     * Returns a new column with a percent change calculated
-     */
-    public FloatColumn pctChange() {
-      FloatColumn newColumn = new FloatColumn(name() + "[pctChange]", size());
-        newColumn.append(MISSING_VALUE);
-        for (int i = 1; i < size(); i++) {
-            newColumn.append(get(i) / get(i-1) - 1);
-        }
-        return newColumn;
-    }    
-
 }

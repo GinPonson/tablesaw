@@ -1,392 +1,475 @@
-/*
- * Licensed under the Apache License, Version 2.0 (the "License");
- * you may not use this file except in compliance with the License.
- * You may obtain a copy of the License at
- *
- *     http://www.apache.org/licenses/LICENSE-2.0
- *
- * Unless required by applicable law or agreed to in writing, software
- * distributed under the License is distributed on an "AS IS" BASIS,
- * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
- * See the License for the specific language governing permissions and
- * limitations under the License.
- */
-
 package tech.tablesaw.api;
 
+import it.unimi.dsi.fastutil.doubles.DoubleComparator;
+import it.unimi.dsi.fastutil.doubles.DoubleRBTreeSet;
+import org.apache.commons.math3.exception.NotANumberException;
+import org.apache.commons.math3.stat.correlation.KendallsCorrelation;
+import org.apache.commons.math3.stat.correlation.PearsonsCorrelation;
+import org.apache.commons.math3.stat.correlation.SpearmansCorrelation;
+import tech.tablesaw.aggregate.AggregateFunctions;
+import tech.tablesaw.aggregate.NumericAggregateFunction;
 import tech.tablesaw.columns.Column;
+import tech.tablesaw.columns.numbers.NumberFilters;
+import tech.tablesaw.columns.numbers.NumberMapFunctions;
+import tech.tablesaw.columns.numbers.NumberRollingColumn;
+import tech.tablesaw.columns.numbers.Stats;
+import tech.tablesaw.filtering.predicates.DoubleBiPredicate;
+import tech.tablesaw.filtering.predicates.DoubleRangePredicate;
+import tech.tablesaw.selection.BitmapBackedSelection;
+import tech.tablesaw.selection.Selection;
 
-/**
- * Functionality common to all numeric column types
- */
-public interface NumericColumn extends Column {
+import java.util.Arrays;
+import java.util.Optional;
+import java.util.function.BiPredicate;
+import java.util.function.DoubleBinaryOperator;
+import java.util.function.DoubleFunction;
+import java.util.function.DoublePredicate;
 
-    static NumericColumn subtractColumns(NumericColumn column1, NumericColumn column2) {
-        int col1Size = column1.size();
-        int col2Size = column2.size();
-        if (col1Size != col2Size) throw new IllegalArgumentException("The columns must have the same number of elements");
+import static tech.tablesaw.aggregate.AggregateFunctions.*;
+import static tech.tablesaw.columns.numbers.NumberPredicates.*;
 
-        if (column1 instanceof DoubleColumn || column2 instanceof DoubleColumn) {
-            DoubleColumn result = new DoubleColumn(column1.name() + " - " + column2.name(), col1Size);
-            for (int r = 0; r < col1Size; r++) {
-                result.append(DoubleColumn.subtract(column1.getDouble(r), column2.getDouble(r)));
-            }
-            return result;
-        }
+public interface NumericColumn<T> extends Column<T>, NumberMapFunctions, NumberFilters {
 
-        else if (column1 instanceof FloatColumn || column2 instanceof FloatColumn) {
-            FloatColumn result = new FloatColumn(column1.name() + " - " + column2.name(), col1Size);
-            for (int r = 0; r < col1Size; r++) {
-                result.append(FloatColumn.subtract(column1.getFloat(r), column2.getFloat(r)));
-            }
-            return result;
-        }
-
-        else if (column1 instanceof LongColumn || column2 instanceof LongColumn) {
-            LongColumn result = new LongColumn(column1.name() + " - " + column2.name(), col1Size);
-            for (int r = 0; r < col1Size; r++) {
-                result.append(LongColumn.subtract(column1.getLong(r), column2.getLong(r)));
-            }
-            return result;
-        }
-        // otherwise we return an IntColumn
-
-        IntColumn result = new IntColumn(column1.name() + " - " + column2.name(), col1Size);
-        for (int r = 0; r < col1Size; r++) {
-            result.append(IntColumn.subtract(column1.getInt(r), column2.getInt(r)));
-        }
-        return result;
+    @Override
+    default boolean isEmpty() {
+        return size() == 0;
     }
 
-    static NumericColumn addColumns(NumericColumn column1, NumericColumn column2) {
-        int col1Size = column1.size();
-        int col2Size = column2.size();
-        if (col1Size != col2Size) throw new IllegalArgumentException("The columns must have the same number of elements");
-
-        if (column1 instanceof DoubleColumn || column2 instanceof DoubleColumn) {
-            DoubleColumn result = new DoubleColumn(column1.name() + " + " + column2.name(), col1Size);
-            for (int r = 0; r < col1Size; r++) {
-                result.append(DoubleColumn.add(column1.getDouble(r), column2.getDouble(r)));
-            }
-            return result;
-        }
-
-        else if (column1 instanceof FloatColumn || column2 instanceof FloatColumn) {
-            FloatColumn result = new FloatColumn(column1.name() + " + " + column2.name(), col1Size);
-            for (int r = 0; r < col1Size; r++) {
-                result.append(FloatColumn.add(column1.getFloat(r), column2.getFloat(r)));
-            }
-            return result;
-        }
-
-        else if (column1 instanceof LongColumn || column2 instanceof LongColumn) {
-            LongColumn result = new LongColumn(column1.name() + " + " + column2.name(), col1Size);
-            for (int r = 0; r < col1Size; r++) {
-                result.append(LongColumn.add(column1.getLong(r), column2.getLong(r)));
-            }
-            return result;
-        }
-        // otherwise we return an IntColumn
-
-        IntColumn result = new IntColumn(column1.name() + " + " + column2.name(), col1Size);
-        for (int r = 0; r < col1Size; r++) {
-            result.append(IntColumn.add(column1.getInt(r), column2.getInt(r)));
-        }
-        return result;
-    }
-
-    static NumericColumn multiplyColumns(NumericColumn column1, NumericColumn column2) {
-        int col1Size = column1.size();
-        int col2Size = column2.size();
-        if (col1Size != col2Size) throw new IllegalArgumentException("The columns must have the same number of elements");
-
-        if (column1 instanceof DoubleColumn || column2 instanceof DoubleColumn) {
-            DoubleColumn result = new DoubleColumn(column1.name() + " * " + column2.name(), col1Size);
-            for (int r = 0; r < col1Size; r++) {
-                result.append(DoubleColumn.multiply(column1.getDouble(r), column2.getDouble(r)));
-            }
-            return result;
-        }
-
-        else if (column1 instanceof FloatColumn || column2 instanceof FloatColumn) {
-            FloatColumn result = new FloatColumn(column1.name() + " * " + column2.name(), col1Size);
-            for (int r = 0; r < col1Size; r++) {
-                result.append(FloatColumn.multiply(column1.getFloat(r), column2.getFloat(r)));
-            }
-            return result;
-        }
-
-        else if (column1 instanceof LongColumn || column2 instanceof LongColumn) {
-            LongColumn result = new LongColumn(column1.name() + " * " + column2.name(), col1Size);
-            for (int r = 0; r < col1Size; r++) {
-                result.append(LongColumn.multiply(column1.getLong(r), column2.getLong(r)));
-            }
-            return result;
-        }
-        // otherwise we return an IntColumn
-
-        IntColumn result = new IntColumn(column1.name() + " * " + column2.name(), col1Size);
-        for (int r = 0; r < col1Size; r++) {
-            result.append(IntColumn.multiply(column1.getInt(r), column2.getInt(r)));
-        }
-        return result;
-    }
-
-    static NumericColumn divideColumns(NumericColumn column1, NumericColumn column2) {
-        int col1Size = column1.size();
-        int col2Size = column2.size();
-        if (col1Size != col2Size) throw new IllegalArgumentException("The columns must have the same number of elements");
-
-        if (column1 instanceof DoubleColumn || column2 instanceof DoubleColumn) {
-            DoubleColumn result = new DoubleColumn(column1.name() + " / " + column2.name(), col1Size);
-            for (int r = 0; r < col1Size; r++) {
-                result.append(DoubleColumn.divide(column1.getDouble(r), column2.getDouble(r)));
-            }
-            return result;
-        }
-
-        else if (column1 instanceof FloatColumn || column2 instanceof FloatColumn) {
-            FloatColumn result = new FloatColumn(column1.name() + " / " + column2.name(), col1Size);
-            for (int r = 0; r < col1Size; r++) {
-                result.append(FloatColumn.divide(column1.getFloat(r), column2.getFloat(r)));
-            }
-            return result;
-        }
-
-        else if (column1 instanceof LongColumn || column2 instanceof LongColumn) {
-            LongColumn result = new LongColumn(column1.name() + " / " + column2.name(), col1Size);
-            for (int r = 0; r < col1Size; r++) {
-                result.append(LongColumn.divide(column1.getLong(r), column2.getLong(r)));
-            }
-            return result;
-        }
-        // otherwise we return an IntColumn
-
-        IntColumn result = new IntColumn(column1.name() + " / " + column2.name(), col1Size);
-        for (int r = 0; r < col1Size; r++) {
-            result.append(IntColumn.divide(column1.getInt(r), column2.getInt(r)));
-        }
-        return result;
-    }
-
-    default NumericColumn subtract(NumericColumn column2) {
-        return NumericColumn.subtractColumns(this, column2);
-    }
-
-    default NumericColumn add(NumericColumn column2) {
-        return NumericColumn.addColumns(this, column2);
-    }
-
-    default NumericColumn multiply(NumericColumn column2) {
-        return NumericColumn.multiplyColumns(this, column2);
-    }
-
-    default NumericColumn divide(NumericColumn column2) {
-        return NumericColumn.divideColumns(this, column2);
-    }
-
-    default NumericColumn add(Number value) {
-        if (value instanceof Double || this instanceof DoubleColumn) {
-            double val = (double) value;
-            DoubleColumn result = new DoubleColumn(name() + " + " + val);
-            for (int i = 0; i < size(); i++) {
-                result.append(DoubleColumn.add(getDouble(i) , val));
-            }
-            return result;
-        } else if (value instanceof Float || this instanceof FloatColumn) {
-            float val = (float) value;
-            FloatColumn result = new FloatColumn(name() + " + " + val);
-            for (int i = 0; i < size(); i++) {
-                result.append(FloatColumn.add(val, getFloat(i)));
-            }
-            return result;
-        } else if (value instanceof Long || this instanceof LongColumn) {
-            long val = (long) value;
-            LongColumn result = new LongColumn(name() + " + " + val);
-            for (int i = 0; i < size(); i++) {
-                result.append(LongColumn.add(getLong(i), val));
-            }
-            return result;
-        }
-        int val = (int) value;
-        IntColumn result = new IntColumn(name() + " + " + val);
+    @Override
+    default double[] asDoubleArray() {
+        final double[] output = new double[size()];
         for (int i = 0; i < size(); i++) {
-            result.append(IntColumn.add(getInt(i), val));
+            output[i] = getDouble(i);
         }
-        return result;
+        return output;
     }
 
-    default NumericColumn subtract(Number value) {
-        if (value instanceof Double || this instanceof DoubleColumn) {
-            double val = (double) value;
-            DoubleColumn result = new DoubleColumn(name() + " - " + val);
-            for (int i = 0; i < size(); i++) {
-                result.append(DoubleColumn.subtract(getDouble(i) , val));
+    @Override
+    default Selection eval(final DoublePredicate predicate) {
+        final Selection bitmap = new BitmapBackedSelection();
+        for (int idx = 0; idx < size(); idx++) {
+            final double next = getDouble(idx);
+            if (predicate.test(next)) {
+                bitmap.add(idx);
             }
-            return result;
-        } else if (value instanceof Float || this instanceof FloatColumn) {
-            float val = (float) value;
-            FloatColumn result = new FloatColumn(name() + " - " + val);
-            for (int i = 0; i < size(); i++) {
-                result.append(FloatColumn.subtract(val, getFloat(i)));
-            }
-            return result;
-        } else if (value instanceof Long || this instanceof LongColumn) {
-            long val = (long) value;
-            LongColumn result = new LongColumn(name() + " - " + val);
-            for (int i = 0; i < size(); i++) {
-                result.append(LongColumn.subtract(getLong(i), val));
-            }
-            return result;
         }
-        int val = (int) value;
-        IntColumn result = new IntColumn(name() + " - " + val);
+        return bitmap;
+    }
+
+    @Override
+    default Selection eval(final DoubleBiPredicate predicate, final DoubleColumn otherColumn) {
+        final Selection selection = new BitmapBackedSelection();
+        for (int idx = 0; idx < size(); idx++) {
+            if (predicate.test(getDouble(idx), otherColumn.getDouble(idx))) {
+                selection.add(idx);
+            }
+        }
+        return selection;
+    }
+
+    @Override
+    default Selection eval(final DoubleBiPredicate predicate, final Number number) {
+        final double value = number.doubleValue();
+        final Selection bitmap = new BitmapBackedSelection();
+        for (int idx = 0; idx < size(); idx++) {
+            final double next = getDouble(idx);
+            if (predicate.test(next, value)) {
+                bitmap.add(idx);
+            }
+        }
+        return bitmap;
+    }
+
+    @Override
+    default Selection eval(final BiPredicate<Number, Number> predicate, final Number number) {
+        final double value = number.doubleValue();
+        final Selection bitmap = new BitmapBackedSelection();
+        for (int idx = 0; idx < size(); idx++) {
+            final double next = getDouble(idx);
+            if (predicate.test(next, value)) {
+                bitmap.add(idx);
+            }
+        }
+        return bitmap;
+    }
+
+    @Override
+    default Selection eval(final DoubleRangePredicate predicate, final Number rangeStart, final Number rangeEnd) {
+        final double start = rangeStart.doubleValue();
+        final double end = rangeEnd.doubleValue();
+        final Selection bitmap = new BitmapBackedSelection();
+        for (int idx = 0; idx < size(); idx++) {
+            final double next = getDouble(idx);
+            if (predicate.test(next, start, end)) {
+                bitmap.add(idx);
+            }
+        }
+        return bitmap;
+    }
+
+    @Override
+    default Selection isIn(final Number... numbers) {
+        return isIn(Arrays.stream(numbers).mapToDouble(Number::doubleValue).toArray());
+    }
+
+    @Override
+    default Selection isIn(final double... doubles) {
+        final Selection results = new BitmapBackedSelection();
+        final DoubleRBTreeSet doubleSet = new DoubleRBTreeSet(doubles);
         for (int i = 0; i < size(); i++) {
-            result.append(IntColumn.subtract(getInt(i), val));
+            if (doubleSet.contains(getDouble(i))) {
+                results.add(i);
+            }
         }
-        return result;
+        return results;
     }
 
-    default NumericColumn divide(Number value) {
-        if (value instanceof Double || this instanceof DoubleColumn) {
-            double val = (double) value;
-            DoubleColumn result = new DoubleColumn(name() + " / " + val);
-            for (int i = 0; i < size(); i++) {
-                result.append(DoubleColumn.divide(getDouble(i) , val));
-            }
-            return result;
-        } else if (value instanceof Float || this instanceof FloatColumn) {
-            float val = (float) value;
-            FloatColumn result = new FloatColumn(name() + " / " + val);
-            for (int i = 0; i < size(); i++) {
-                result.append(FloatColumn.divide(val, getFloat(i)));
-            }
-            return result;
-        } else if (value instanceof Long || this instanceof LongColumn) {
-            long val = (long) value;
-            LongColumn result = new LongColumn(name() + " / " + val);
-            for (int i = 0; i < size(); i++) {
-                result.append(LongColumn.divide(getLong(i), val));
-            }
-            return result;
-        }
-        int val = (int) value;
-        IntColumn result = new IntColumn(name() + " / " + val);
-        for (int i = 0; i < size(); i++) {
-            result.append(IntColumn.divide(getInt(i), val));
-        }
-        return result;
+    @Override
+    default Selection isNotIn(final Number... numbers) {
+        final Selection results = new BitmapBackedSelection();
+        results.addRange(0, size());
+        results.andNot(isIn(numbers));
+        return results;
     }
 
-    default NumericColumn multiply(Number value) {
-        if (value instanceof Double || this instanceof DoubleColumn) {
-            double val = (double) value;
-            DoubleColumn result = new DoubleColumn(name() + " * " + val);
-            for (int i = 0; i < size(); i++) {
-                result.append(DoubleColumn.multiply(getDouble(i) , val));
-            }
-            return result;
-        } else if (value instanceof Float || this instanceof FloatColumn) {
-            float val = (float) value;
-            FloatColumn result = new FloatColumn(name() + " * " + val);
-            for (int i = 0; i < size(); i++) {
-                result.append(FloatColumn.multiply(val, getFloat(i)));
-            }
-            return result;
-        } else if (value instanceof Long || this instanceof LongColumn) {
-            long val = (long) value;
-            LongColumn result = new LongColumn(name() + " * " + val);
-            for (int i = 0; i < size(); i++) {
-                result.append(LongColumn.multiply(getLong(i), val));
-            }
-            return result;
-        }
-        int val = (int) value;
-        IntColumn result = new IntColumn(name() + " * " + val);
-        for (int i = 0; i < size(); i++) {
-            result.append(IntColumn.multiply(getInt(i), val));
-        }
-        return result;
+    @Override
+    default Selection isNotIn(final double... doubles) {
+        final Selection results = new BitmapBackedSelection();
+        results.addRange(0, size());
+        results.andNot(isIn(doubles));
+        return results;
     }
 
-    double[] asDoubleArray();
+    @Override
+    default Selection isMissing() {
+        return eval(isMissing);
+    }
 
-    /**
-     * Returns int value at <code>index</code> position in the column. A conversion, if needed, could result
-     * in data or accuracy loss.
-     * @param index position in column
-     * @return int value at position
-     */
-    default int getInt(int index) {
-        throw new UnsupportedOperationException("getInt() method not supported for all data types");
+    @Override
+    default Selection isNotMissing() {
+        return eval(isNotMissing);
     }
 
     /**
-     * Returns long value at <code>index</code> position in the column. A conversion, if needed, could result
-     * in data or accuracy loss.
-     * @param index position in column
-     * @return long value at position
+     * Counts the number of rows satisfying predicate
+     *
+     * @param test the predicate
+     * @return the number of rows satisfying the predicate
      */
-    default long getLong(int index) {
-        throw new UnsupportedOperationException("getLong() method not supported for all data types");
+    default int count(DoublePredicate test) {
+        return count(test, size());
     }
 
     /**
-     * Returns float value at <code>index</code> position in the column. A conversion, if needed, could result
-     * in data or accuracy loss.
-     * @param index position in column
-     * @return float value at position
+     * Counts the number of rows satisfying predicate, but only upto the max value
+     *
+     * @param test the predicate
+     * @param max  the maximum number of rows to count
+     * @return the number of rows satisfying the predicate
      */
-    default float getFloat(int index) {
-        throw new UnsupportedOperationException("getFloat() method not supported for all data types");
+    default int count(DoublePredicate test, int max) {
+        int count = 0;
+        for (int i = 0; i < size(); i++) {
+            if (test.test(getDouble(i))) {
+                count++;
+                if (count >= max) {
+                    return count;
+                }
+            }
+        }
+        return count;
     }
 
     /**
-     * Returns double value at <code>index</code> position in the column. A conversion, if needed, could result
-     * in data or accuracy loss.
-     * @param index position in column
-     * @return double value at position
+     * Returns the maximum row according to the provided Comparator
+     *
+     * @param comp
+     * @return the maximum row
      */
-    default double getDouble(int index) {
-        throw new UnsupportedOperationException("getDouble() method not supported for all data types");
+    default Optional<Double> max(DoubleComparator comp) {
+        boolean first = true;
+        double d1 = 0.0;
+        for (int i = 0; i < size(); i++) {
+            double d2 = getDouble(i);
+            if (first) {
+                d1 = d2;
+                first = false;
+            } else if (comp.compare(d1, d2) < 0) {
+                d1 = d2;
+            }
+        }
+        return (first ? Optional.<Double>empty() : Optional.<Double>of(d1));
     }
 
-    double max();
+    /**
+     * Returns the minimum row according to the provided Comparator
+     *
+     * @param comp
+     * @return the minimum row
+     */
+    default Optional<Double> min(DoubleComparator comp) {
+        boolean first = true;
+        double d1 = 0.0;
+        for (int i = 0; i < size(); i++) {
+            double d2 = getDouble(i);
+            if (first) {
+                d1 = d2;
+                first = false;
+            } else if (comp.compare(d1, d2) > 0) {
+                d1 = d2;
+            }
+        }
+        return (first ? Optional.<Double>empty() : Optional.<Double>of(d1));
+    }
 
-    double min();
+    /**
+     * Reduction with binary operator and initial value
+     *
+     * @param initial initial value
+     * @param op      the operator
+     * @return the result of reducing initial value and all rows with operator
+     */
+    default double reduce(double initial, DoubleBinaryOperator op) {
+        double acc = initial;
+        for (int i = 0; i < size(); i++) {
+            acc = op.applyAsDouble(acc, getDouble(i));
+        }
+        return acc;
+    }
 
-    double product();
+    /**
+     * Reduction with binary operator
+     *
+     * @param op the operator
+     * @return Optional with the result of reducing all rows with operator
+     */
+    default Optional<Double> reduce(DoubleBinaryOperator op) {
+        boolean first = true;
+        double acc = 0.0;
+        for (int i = 0; i < size(); i++) {
+            double d = getDouble(i);
+            if (first) {
+                acc = d;
+                first = false;
+            } else {
+                acc = op.applyAsDouble(acc, d);
+            }
+        }
+        return (first ? Optional.<Double>empty() : Optional.<Double>of(acc));
+    }
 
-    double mean();
+    /**
+     * Maps the function across all rows, appending the results to the provided Column
+     *
+     * @param fun  function to map
+     * @param into Column to which results are appended
+     * @return the provided Column, to which results are appended
+     */
+    default <R> Column<R> mapInto(DoubleFunction<? extends R> fun, Column<R> into) {
+        for (int i = 0; i < size(); i++) {
+            try {
+                into.append(fun.apply(getDouble(i)));
+            } catch (Exception e) {
+                into.appendMissing();
+            }
+        }
+        return into;
+    }
 
-    double median();
+    @Override
+    default NumericColumn<T> where(final Selection selection) {
+        return (NumericColumn<T>) subset(selection.toArray());
+    }
 
-    double quartile1();
+    /**
+     * Summarizes the data in this column for all rows where the current value matches the selection criteria
+     * <p>
+     * Example:
+     * myColumn.summarize(myColumn.isLessThan(100), AggregateFunctions.count);
+     */
+    default Double summarize(Selection selection, NumericAggregateFunction function) {
+        NumericColumn<T> column = where(selection);
+        return function.summarize(column);
+    }
 
-    double quartile3();
+    // Reduce functions applied to the whole column
+    default double sum() {
+        return sum.summarize(this);
+    }
 
-    double percentile(double percentile);
+    default double product() {
+        return product.summarize(this);
+    }
 
-    double range();
+    default double mean() {
+        return mean.summarize(this);
+    }
 
-    double variance();
+    default double median() {
+        return median.summarize(this);
+    }
 
-    double populationVariance();
+    default double quartile1() {
+        return quartile1.summarize(this);
+    }
 
-    double standardDeviation();
+    default double quartile3() {
+        return quartile3.summarize(this);
+    }
 
-    double sumOfLogs();
+    default double percentile(double percentile) {
+        return AggregateFunctions.percentile(this, percentile);
+    }
 
-    double sumOfSquares();
+    default double range() {
+        return range.summarize(this);
+    }
 
-    double geometricMean();
+    default double max() {
+        return max.summarize(this);
+    }
+
+    default double min() {
+        return min.summarize(this);
+    }
+
+    default double variance() {
+        return variance.summarize(this);
+    }
+
+    default double populationVariance() {
+        return populationVariance.summarize(this);
+    }
+
+    default double standardDeviation() {
+        return stdDev.summarize(this);
+    }
+
+    default double sumOfLogs() {
+        return sumOfLogs.summarize(this);
+    }
+
+    default double sumOfSquares() {
+        return sumOfSquares.summarize(this);
+    }
+
+    default double geometricMean() {
+        return geometricMean.summarize(this);
+    }
 
     /**
      * Returns the quadraticMean, aka the root-mean-square, for all values in this column
      */
-    double quadraticMean();
+    default double quadraticMean() {
+        return quadraticMean.summarize(this);
+    }
 
-    double kurtosis();
+    default double kurtosis() {
+        return kurtosis.summarize(this);
+    }
 
-    double skewness();
+    default double skewness() {
+        return skewness.summarize(this);
+    }
+
+    /**
+     * Returns the pearson's correlation between the receiver and the otherColumn
+     **/
+    default double pearsons(NumericColumn<?> otherColumn) {
+        double[] x = asDoubleArray();
+        double[] y = otherColumn.asDoubleArray();
+        return new PearsonsCorrelation().correlation(x, y);
+    }
+
+    /**
+     * Returns the Spearman's Rank correlation between the receiver and the otherColumn
+     *
+     * @param otherColumn A NumberColumn with no missing values
+     * @throws NotANumberException if either column contains any missing values
+     **/
+    default double spearmans(NumericColumn<?> otherColumn) {
+        double[] x = asDoubleArray();
+        double[] y = otherColumn.asDoubleArray();
+        return new SpearmansCorrelation().correlation(x, y);
+    }
+
+    /**
+     * Returns the Kendall's Tau Rank correlation between the receiver and the otherColumn
+     **/
+    default double kendalls(NumericColumn<?> otherColumn) {
+        double[] x = asDoubleArray();
+        double[] y = otherColumn.asDoubleArray();
+        return new KendallsCorrelation().correlation(x, y);
+    }
+
+    default Table summary() {
+        return stats().asTable();
+    }
+
+    default Stats stats() {
+        return Stats.create(this);
+    }
+    
+    default NumberRollingColumn rolling(final int windowSize) {
+        return new NumberRollingColumn(this, windowSize);
+    }
+
+    @Override
+    default NumericColumn<T> lead(final int n) {
+        final NumericColumn<T> numberColumn = lag(-n);
+        numberColumn.setName(name() + " lead(" + n + ")");
+        return numberColumn;
+    }
+
+    NumericColumn<T> lag(final int n);
+
+    double getDouble(int index);
+
+    /**
+     * Returns a new LongColumn containing a value for each value in this column
+     *
+     * The exact behavior when overridden depends on the type of the receiver (LongColumn, FloatColumn, etc.)
+     *
+     * In this version, the result is a copy of the original
+     */
+    default LongColumn asLongColumn() {
+        return (LongColumn) this.copy();
+    }
+
+    /**
+     * Returns a new IntColumn containing  a value for each value in this column
+     *
+     * The exact behavior when overridden depends on the type of the receiver (LongColumn, FloatColumn, etc.)
+     *
+     * In this version, the result is a copy of the original
+     */
+    default IntColumn asIntColumn() {
+        return (IntColumn) this.copy();
+    }
+
+    /**
+     * Returns a new FloatColumn containing a value for each value in this column
+     *
+     * The exact behavior when overridden depends on the type of the receiver (LongColumn, FloatColumn, etc.)
+     *
+     * In this version, the result is a copy of the original
+     */
+    default FloatColumn asFloatColumn() {
+        return (FloatColumn) this.copy();
+    }
+
+    /**
+     * Returns a new DoubleColumn containing a value for each value in this column
+     *
+     * The exact behavior when overridden depends on the type of the receiver (LongColumn, FloatColumn, etc.)
+     *
+     * In this version, the result is a copy of the original
+     */
+    default DoubleColumn asDoubleColumn() {
+        return (DoubleColumn) this.copy();
+    }
+
+    default ShortColumn asShortColumn() {
+        return (ShortColumn) this.copy();
+    }
 }

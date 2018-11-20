@@ -14,6 +14,7 @@
 
 package tech.tablesaw.api;
 
+import tech.tablesaw.columns.booleans.BooleanFormatter;
 import org.junit.Before;
 import org.junit.Test;
 
@@ -24,7 +25,7 @@ import static org.junit.Assert.*;
  */
 public class BooleanColumnTest {
 
-    private final BooleanColumn column = new BooleanColumn("Test");
+    private final BooleanColumn column = BooleanColumn.create("Test");
 
     @Before
     public void setUp() {
@@ -38,19 +39,74 @@ public class BooleanColumnTest {
     }
 
     @Test
-    public void testGetElements() throws Exception {
+    public void testAny() {
+        assertTrue(column.any());
+    }
+
+    @Test
+    public void testAll() {
+        assertFalse(column.all());
+        BooleanColumn filtered = column.where(column.isTrue());
+        assertTrue(filtered.all());
+    }
+
+    @Test
+    public void inRange() {
+        assertFalse(column.all());
+        BooleanColumn filtered = column.inRange(0, 2);
+        assertEquals(2, filtered.size());
+    }
+
+    @Test
+    public void testNone() {
+        assertFalse(column.none());
+        BooleanColumn filtered = column.where(column.isFalse());
+        assertTrue(filtered.none());
+    }
+
+    @Test
+    public void testSet() {
+        assertFalse(column.none());
+        column.set(column.isTrue(), false);
+        assertTrue(column.none());
+    }
+
+    @Test
+    public void testGetDouble() {
+        assertEquals(1, column.getDouble(4), 0.0);
+        assertEquals(0, column.getDouble(0), 0.0);
+    }
+
+    @Test
+    public void testAppendColumn() {
+        BooleanColumn column1 = column.copy();
+        column1.append(column);
+        assertEquals(2 * column.size(), column1.size());
+    }
+
+    @Test
+    public void testPrinting() {
+        column.appendCell("");
+        column.setPrintFormatter(new BooleanFormatter("Yes", "No", "IDK"));
+        assertEquals("No", column.getString(0));
+        assertEquals("Yes", column.getString(5));
+        assertEquals("IDK", column.getString(column.size() - 1));
+    }
+
+    @Test
+    public void testGetElements() {
         assertEquals(7, column.size());
     }
 
     @Test
-    public void testCounts() throws Exception {
+    public void testCounts() {
         assertEquals(7, column.size());
         assertEquals(7, column.countTrue() + column.countFalse());
         assertEquals(2, column.countTrue());
     }
 
     @Test
-    public void testAddCell() throws Exception {
+    public void testAddCell() {
         column.append(true);
         assertEquals(8, column.size());
 
@@ -72,33 +128,50 @@ public class BooleanColumnTest {
         column.appendCell("N");
         assertFalse(lastEntry());
         column.appendCell("");
-        assertFalse(lastEntry());
+        assertNull(column.get(column.size() - 1));
     }
 
     @Test
-    public void testGetType() throws Exception {
+    public void testGetType() {
         assertEquals("Boolean".toUpperCase(), column.type().name());
     }
 
     @Test
-    public void testSummary() throws Exception {
-        Table summary = column.summary();
-        assertEquals(2, summary.columnCount());
-        assertEquals(2, summary.rowCount());
-        assertEquals("false", summary.get(0, 0));
-        assertEquals("5", summary.get(0, 1));
-        assertEquals("true", summary.get(1, 0));
-        assertEquals("2", summary.get(1, 1));
+    public void testToString() {
+        assertEquals("Boolean column: " + column.name(), column.toString());
     }
 
     @Test
-    public void testCountUnique() throws Exception {
+    public void testPrint() {
+        assertEquals("Column: Test\n" +
+                "false\n" +
+                "false\n" +
+                "false\n" +
+                "false\n" +
+                "true\n" +
+                "true\n" +
+                "false\n", column.print());
+    }
+
+    @Test
+    public void testSummary() {
+        Table summary = column.summary();
+        assertEquals(2, summary.columnCount());
+        assertEquals(2, summary.rowCount());
+        assertEquals("false", summary.getUnformatted(0, 0));
+        assertEquals("5.0", summary.getUnformatted(0, 1));
+        assertEquals("true", summary.getUnformatted(1, 0));
+        assertEquals("2.0", summary.getUnformatted(1, 1));
+    }
+
+    @Test
+    public void testCountUnique() {
         int result = column.countUnique();
         assertEquals(2, result);
     }
 
     @Test
-    public void testToDoubleArray() throws Exception {
+    public void testToDoubleArray() {
         double[] result = column.asDoubleArray();
         assertEquals(0.0, result[0], 0.01);
         assertEquals(0.0, result[1], 0.01);
@@ -114,27 +187,15 @@ public class BooleanColumnTest {
      * invoked on, so the true false counts are the opposite of those in the original
      */
     @Test
-    public void testBitmapConstructor() throws Exception {
-        BooleanColumn bc = new BooleanColumn("Is false", column.isFalse(), column.size());
+    public void testBitmapConstructor() {
+        BooleanColumn bc = BooleanColumn.create("Is false", column.isFalse(), column.size());
         Table summary = bc.summary();
         assertEquals(2, summary.columnCount());
         assertEquals(2, summary.rowCount());
-        assertEquals("false", summary.get(0, 0));
-        assertEquals("2", summary.get(0, 1));
-        assertEquals("true", summary.get(1, 0));
-        assertEquals("5", summary.get(1, 1));
-    }
-
-    @Test
-    public void testConversionToInt() {
-        int[] array = column.asIntArray();
-        assertTrue(array[0] == 0);
-        assertTrue(array[1] == 0);
-        assertTrue(array[2] == 0);
-        assertTrue(array[3] == 0);
-        assertTrue(array[4] == 1);
-        assertTrue(array[5] == 1);
-        assertTrue(array[6] == 0);
+        assertEquals("false", summary.getUnformatted(0, 0));
+        assertEquals("2.0", summary.getUnformatted(0, 1));
+        assertEquals("true", summary.getUnformatted(1, 0));
+        assertEquals("5.0", summary.getUnformatted(1, 1));
     }
 
     @Test

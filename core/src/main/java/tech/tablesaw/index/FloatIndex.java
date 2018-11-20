@@ -19,11 +19,11 @@ import it.unimi.dsi.fastutil.floats.Float2ObjectOpenHashMap;
 import it.unimi.dsi.fastutil.floats.Float2ObjectSortedMap;
 import it.unimi.dsi.fastutil.ints.IntArrayList;
 import tech.tablesaw.api.FloatColumn;
-import tech.tablesaw.util.BitmapBackedSelection;
-import tech.tablesaw.util.Selection;
+import tech.tablesaw.selection.BitmapBackedSelection;
+import tech.tablesaw.selection.Selection;
 
 /**
- * An index for four-byte floating point columns
+ * An index for single-precision 32-bit IEEE 754 floating point columns.
  */
 public class FloatIndex {
 
@@ -33,7 +33,7 @@ public class FloatIndex {
         int sizeEstimate = Integer.min(1_000_000, column.size() / 100);
         Float2ObjectOpenHashMap<IntArrayList> tempMap = new Float2ObjectOpenHashMap<>(sizeEstimate);
         for (int i = 0; i < column.size(); i++) {
-            float value = column.get(i);
+            float value = column.getFloat(i);
             IntArrayList recordIds = tempMap.get(value);
             if (recordIds == null) {
                 recordIds = new IntArrayList();
@@ -62,7 +62,7 @@ public class FloatIndex {
         Selection selection = new BitmapBackedSelection();
         IntArrayList list = index.get(value);
         if (list != null) {
-          addAllToSelection(list, selection);
+            addAllToSelection(list, selection);
         }
         return selection;
     }
@@ -97,7 +97,7 @@ public class FloatIndex {
 
     public Selection lessThan(float value) {
         Selection selection = new BitmapBackedSelection();
-        Float2ObjectSortedMap<IntArrayList> head = index.headMap(value);  // we add 1 to get values equal to the arg
+        Float2ObjectSortedMap<IntArrayList> head = index.headMap(value);
         for (IntArrayList keys : head.values()) {
             addAllToSelection(keys, selection);
         }

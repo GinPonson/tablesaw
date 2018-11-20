@@ -1,46 +1,34 @@
-/*
- * Licensed under the Apache License, Version 2.0 (the "License");
- * you may not use this file except in compliance with the License.
- * You may obtain a copy of the License at
- *
- *     http://www.apache.org/licenses/LICENSE-2.0
- *
- * Unless required by applicable law or agreed to in writing, software
- * distributed under the License is distributed on an "AS IS" BASIS,
- * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
- * See the License for the specific language governing permissions and
- * limitations under the License.
- */
-
 package tech.tablesaw.api;
-
-import static org.junit.Assert.assertEquals;
-
-import java.time.LocalDate;
-import java.util.Locale;
-import java.util.stream.Collectors;
 
 import org.junit.Before;
 import org.junit.Test;
+import tech.tablesaw.columns.dates.DateColumnType;
 
-import tech.tablesaw.columns.packeddata.PackedLocalDate;
+import java.time.LocalDate;
+import java.time.format.DateTimeFormatter;
+import java.util.stream.Collectors;
 
-/**
- * Tests for Date Column
- */
+import static org.junit.Assert.assertEquals;
+
 public class DateColumnTest {
-
     private DateColumn column1;
 
     @Before
-    public void setUp() throws Exception {
+    public void setUp() {
         Table table = Table.create("Test");
-        column1 = new DateColumn("Game date", Locale.ENGLISH);
-        table.addColumn(column1);
+        column1 = DateColumn.create("Game date");
+        table.addColumns(column1);
     }
 
     @Test
-    public void testAddCell() throws Exception {
+    public void testCreate1() {
+        LocalDate[] dates = new LocalDate[5];
+        DateColumn column = DateColumn.create("Game date", dates);
+        assertEquals(DateColumn.MISSING_VALUE, column.getIntInternal(0));
+    }
+
+    @Test
+    public void testAddCell() {
         column1.appendCell("2013-10-23");
         column1.appendCell("12/23/1924");
         column1.appendCell("12-May-2015");
@@ -52,38 +40,68 @@ public class DateColumnTest {
     }
 
     @Test
-    public void testDayOfMonth() throws Exception {
+    public void testPrint() {
         column1.appendCell("2013-10-23");
-        column1.appendCell("12/24/1924");
+        column1.appendCell("12/23/1924");
         column1.appendCell("12-May-2015");
-        column1.appendCell("14-Jan-2015");
-        ShortColumn c2 = column1.dayOfMonth();
-        assertEquals(23, c2.get(0));
-        assertEquals(24, c2.get(1));
-        assertEquals(12, c2.get(2));
-        assertEquals(14, c2.get(3));
+        column1.appendCell("12-Jan-2015");
+        column1.setPrintFormatter(DateTimeFormatter.ofPattern("MMM~dd~yyyy"), "");
+        assertEquals("Column: Game date\n" +
+                        "Oct~23~2013\n" +
+                        "Dec~23~1924\n" +
+                        "May~12~2015\n" +
+                        "Jan~12~2015\n"
+                , column1.print());
     }
 
     @Test
-    public void testMonth() throws Exception {
+    public void testPrint2() {
         column1.appendCell("2013-10-23");
-        column1.appendCell("12/24/1924");
+        column1.appendCell("12/23/1924");
         column1.appendCell("12-May-2015");
-        column1.appendCell("14-Jan-2015");
-        ShortColumn c2 = column1.monthValue();
-        assertEquals(10, c2.get(0));
-        assertEquals(12, c2.get(1));
-        assertEquals(5, c2.get(2));
-        assertEquals(1, c2.get(3));
+        column1.appendCell("12-Jan-2015");
+        column1.setPrintFormatter(DateTimeFormatter.ofPattern("MMM~dd~yyyy"));
+        assertEquals("Column: Game date\n" +
+                        "Oct~23~2013\n" +
+                        "Dec~23~1924\n" +
+                        "May~12~2015\n" +
+                        "Jan~12~2015\n"
+                , column1.print());
     }
 
     @Test
-    public void testYearMonthString() throws Exception {
+    public void testDayOfMonth() {
         column1.appendCell("2013-10-23");
         column1.appendCell("12/24/1924");
         column1.appendCell("12-May-2015");
         column1.appendCell("14-Jan-2015");
-        CategoryColumn c2 = column1.yearMonthString();
+        IntColumn c2 = column1.dayOfMonth();
+        assertEquals(23, c2.get(0), 0.0001);
+        assertEquals(24, c2.get(1), 0.0001);
+        assertEquals(12, c2.get(2), 0.0001);
+        assertEquals(14, c2.get(3), 0.0001);
+    }
+
+    @Test
+    public void testMonth() {
+        column1.appendCell("2013-10-23");
+        column1.appendCell("12/24/1924");
+        column1.appendCell("12-May-2015");
+        column1.appendCell("14-Jan-2015");
+        IntColumn c2 = column1.monthValue();
+        assertEquals(10, c2.get(0), 0.0001);
+        assertEquals(12, c2.get(1), 0.0001);
+        assertEquals(5, c2.get(2), 0.0001);
+        assertEquals(1, c2.get(3), 0.0001);
+    }
+
+    @Test
+    public void testYearMonthString() {
+        column1.appendCell("2013-10-23");
+        column1.appendCell("12/24/1924");
+        column1.appendCell("12-May-2015");
+        column1.appendCell("14-Jan-2015");
+        StringColumn c2 = column1.yearMonth();
         assertEquals("2013-10", c2.get(0));
         assertEquals("1924-12", c2.get(1));
         assertEquals("2015-05", c2.get(2));
@@ -91,18 +109,18 @@ public class DateColumnTest {
     }
 
     @Test
-    public void testYear() throws Exception {
+    public void testYear() {
         column1.appendCell("2013-10-23");
         column1.appendCell("12/24/1924");
         column1.appendCell("12-May-2015");
-        ShortColumn c2 = column1.year();
-        assertEquals(2013, c2.get(0));
-        assertEquals(1924, c2.get(1));
-        assertEquals(2015, c2.get(2));
+        IntColumn c2 = column1.year();
+        assertEquals(2013, c2.get(0), 0.0001);
+        assertEquals(1924, c2.get(1), 0.0001);
+        assertEquals(2015, c2.get(2), 0.0001);
     }
 
     @Test
-    public void testSummary() throws Exception {
+    public void testSummary() {
         column1.appendCell("2013-10-23");
         column1.appendCell("12/24/1924");
         column1.appendCell("12-May-2015");
@@ -121,22 +139,22 @@ public class DateColumnTest {
 
         LocalDate actual = column1.min();
 
-        assertEquals(PackedLocalDate.asLocalDate(column1.convert("2013-10-23")), actual);
+        assertEquals(DateColumnType.DEFAULT_PARSER.parse("2013-10-23"), actual);
     }
 
     @Test
     public void testSortOn() {
-      Table unsorted = Table.read().csv(
-          "Date,1 Yr Treasury Rate\n"
-              + "\"01-01-1871\",4.44%\n"
-              + "\"01-01-1920\",8.83%\n"
-              + "\"01-01-1921\",7.11%\n"
-              + "\"01-01-1919\",7.85%\n",
-          "1 Yr Treasury Rate");
-      Table sorted = unsorted.sortOn("Date");
-      assertEquals(
-          sorted.dateColumn("Date").asList().stream().sorted().collect(Collectors.toList()),
-          sorted.dateColumn("Date").asList());
+        Table unsorted = Table.read().csv(
+                "Date,1 Yr Treasury Rate\n"
+                        + "\"01-01-1871\",4.44%\n"
+                        + "\"01-01-1920\",8.83%\n"
+                        + "\"01-01-1921\",7.11%\n"
+                        + "\"01-01-1919\",7.85%\n",
+                "1 Yr Treasury Rate");
+        Table sorted = unsorted.sortOn("Date");
+        assertEquals(
+                sorted.dateColumn("Date").asList().stream().sorted().collect(Collectors.toList()),
+                sorted.dateColumn("Date").asList());
     }
 
 }

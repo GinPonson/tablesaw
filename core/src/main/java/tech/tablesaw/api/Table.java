@@ -14,69 +14,53 @@
 
 package tech.tablesaw.api;
 
-import static tech.tablesaw.aggregate.AggregateFunctions.count;
-import static tech.tablesaw.aggregate.AggregateFunctions.max;
-import static tech.tablesaw.aggregate.AggregateFunctions.mean;
-import static tech.tablesaw.aggregate.AggregateFunctions.median;
-import static tech.tablesaw.aggregate.AggregateFunctions.min;
-import static tech.tablesaw.aggregate.AggregateFunctions.stdDev;
-import static tech.tablesaw.aggregate.AggregateFunctions.sum;
-import static tech.tablesaw.aggregate.AggregateFunctions.variance;
-
-import java.io.IOException;
-import java.util.ArrayList;
-import java.util.Arrays;
-import java.util.BitSet;
-import java.util.Collection;
-import java.util.Iterator;
-import java.util.List;
-import java.util.Map;
-import java.util.stream.Collectors;
-
-import org.apache.commons.lang3.RandomUtils;
-
-import com.google.common.annotations.VisibleForTesting;
 import com.google.common.base.Preconditions;
-
-import it.unimi.dsi.fastutil.ints.IntArrayList;
+import com.google.common.primitives.Ints;
 import it.unimi.dsi.fastutil.ints.IntArrays;
 import it.unimi.dsi.fastutil.ints.IntComparator;
-import it.unimi.dsi.fastutil.ints.IntIterable;
-import it.unimi.dsi.fastutil.ints.IntIterator;
 import tech.tablesaw.aggregate.AggregateFunction;
-import tech.tablesaw.aggregate.SummaryFunction;
+import tech.tablesaw.aggregate.CrossTab;
+import tech.tablesaw.aggregate.Summarizer;
 import tech.tablesaw.columns.Column;
-import tech.tablesaw.filtering.Filter;
 import tech.tablesaw.io.DataFrameReader;
 import tech.tablesaw.io.DataFrameWriter;
 import tech.tablesaw.io.html.HtmlTableWriter;
-import tech.tablesaw.join.DataFrameJoiner;
+import tech.tablesaw.joining.DataFrameJoiner;
+import tech.tablesaw.selection.BitmapBackedSelection;
+import tech.tablesaw.selection.Selection;
 import tech.tablesaw.sorting.Sort;
-import tech.tablesaw.sorting.Sort.Order;
-import tech.tablesaw.store.StorageManager;
-import tech.tablesaw.store.TableMetadata;
-import tech.tablesaw.table.Projection;
+import tech.tablesaw.sorting.SortUtils;
+import tech.tablesaw.sorting.comparators.IntComparatorChain;
 import tech.tablesaw.table.Relation;
 import tech.tablesaw.table.Rows;
-import tech.tablesaw.table.ViewGroup;
-import tech.tablesaw.util.BitmapBackedSelection;
-import tech.tablesaw.util.IntComparatorChain;
-import tech.tablesaw.util.ReversingIntComparator;
-import tech.tablesaw.util.Selection;
+import tech.tablesaw.table.StandardTableSliceGroup;
+import tech.tablesaw.table.TableSliceGroup;
+
+import java.util.ArrayList;
+import java.util.Arrays;
+import java.util.Comparator;
+import java.util.Iterator;
+import java.util.List;
+import java.util.function.Consumer;
+import java.util.function.Predicate;
+import java.util.stream.Collectors;
+
+import static tech.tablesaw.aggregate.AggregateFunctions.countMissing;
+import static tech.tablesaw.selection.Selection.selectNRowsAtRandom;
 
 /**
  * A table of data, consisting of some number of columns, each of which has the same number of rows.
  * All the data in a column has the same type: integer, float, category, etc., but a table may contain an arbitrary
  * number of columns of any type.
  * <p>
- * Tables are the main data-type and primary focus of Tablesaw.
+ * Tables are the main data-type and primary focus of Airframe.
  */
-public class Table extends Relation implements IntIterable {
+public class Table extends Relation implements Iterable<Row> {
 
     /**
      * The columns that hold the data in this table
      */
-    private final List<Column> columnList = new ArrayList<>();
+    private final List<Column<?>> columnList = new ArrayList<>();
     /**
      * The name of the table
      */
@@ -90,24 +74,15 @@ public class Table extends Relation implements IntIterable {
     }
 
     /**
-     * Returns a new table initialized with data from the given TableMetadata object
-     * <p>
-     * The metadata is used by the storage module to save tables and read their data from disk
-     */
-    private Table(TableMetadata metadata) {
-        this.name = metadata.getName();
-    }
-
-    /**
      * Returns a new Table initialized with the given names and columns
      *
      * @param name    The name of the table
      * @param columns One or more columns, all of which must have either the same length or size 0
      */
-    protected Table(String name, Column... columns) {
+    protected Table(String name, Column<?>... columns) {
         this(name);
-        for (Column column : columns) {
-            this.addColumn(column);
+        for (final Column<?> column : columns) {
+            this.addColumns(column);
         }
     }
 
@@ -118,20 +93,12 @@ public class Table extends Relation implements IntIterable {
         return new Table(tableName);
     }
 
-
-    /**
-     * Returns a new, empty table constructed according to the given metadata
-     */
-    public static Table create(TableMetadata metadata) {
-        return new Table(metadata);
-    }
-
     /**
      * Returns a new table with the given columns and given name
      *
      * @param columns One or more columns, all of the same @code{column.size()}
      */
-    public static Table create(String tableName, Column... columns) {
+    public static Table create(final String tableName, final Column<?>... columns) {
         return new Table(tableName, columns);
     }
 
@@ -147,43 +114,16 @@ public class Table extends Relation implements IntIterable {
     /**
      * Returns an object that can be used to sort this table in the order specified for by the given column names
      */
-    @VisibleForTesting
-    public static Sort getSort(String... columnNames) {
+    private static Sort getSort(String... columnNames) {
         Sort key = null;
         for (String s : columnNames) {
             if (key == null) {
-                key = first(s, Order.DESCEND);
+                key = first(s, Sort.Order.DESCEND);
             } else {
-                key.next(s, Order.DESCEND);
+                key.next(s, Sort.Order.DESCEND);
             }
         }
         return key;
-    }
-
-    /**
-     * Creates an IntColumn containing the integers from startsWith to rowCount() and adds it to this table.
-     * Can be used for maintaining/restoring a specific order on data without an existing order column, or for
-     * generating scatter/line plots where the variation of points in some order is what you're trying to see.
-     */
-    public void addIndexColumn(String columnName, int startsWith) {
-
-        IntColumn indexColumn = new IntColumn(columnName, rowCount());
-        for (int i = 0; i < rowCount(); i++) {
-            indexColumn.append(i + startsWith);
-        }
-        addColumn(indexColumn);
-    }
-
-    public static Table readTable(String tableNameAndPath) {
-        Table t;
-        try {
-            t = StorageManager.readTable(tableNameAndPath);
-        } catch (IOException e) {
-            System.err.println("Unable to load table from Tablesaw table format");
-            e.printStackTrace();
-            return null;
-        }
-        return t;
     }
 
     public static DataFrameReader read() {
@@ -191,46 +131,15 @@ public class Table extends Relation implements IntIterable {
     }
 
     public DataFrameWriter write() {
-      return new DataFrameWriter(this);
-    }
- 
-    /**
-     * Returns an randomly generated array of ints of size N where Max is the largest possible value
-     */
-    static int[] generateUniformBitmap(int N, int Max) {
-        if (N > Max) {
-          throw new IllegalArgumentException("Illegal arguments: N (" + N + ") greater than Max (" + Max + ")");
-        }
-
-        int[] ans = new int[N];
-        if (N == Max) {
-            for (int k = 0; k < N; ++k)
-                ans[k] = k;
-            return ans;
-        }
-
-        BitSet bs = new BitSet(Max);
-        int cardinality = 0;
-        while (cardinality < N) {
-            int v = RandomUtils.nextInt(0, Max);
-            if (!bs.get(v)) {
-                bs.set(v);
-                cardinality++;
-            }
-        }
-        int pos = 0;
-        for (int i = bs.nextSetBit(0); i >= 0; i = bs.nextSetBit(i + 1)) {
-            ans[pos++] = i;
-        }
-        return ans;
+        return new DataFrameWriter(this);
     }
 
     /**
      * Adds the given column to this table
      */
     @Override
-    public Table addColumn(Column... cols) {
-        for (Column c : cols) {
+    public Table addColumns(final Column<?>... cols) {
+        for (final Column<?> c : cols) {
             validateColumn(c);
             columnList.add(c);
         }
@@ -240,7 +149,7 @@ public class Table extends Relation implements IntIterable {
     /**
      * Throws an IllegalArgumentException if a column with the given name is already in the table
      */
-    private void validateColumn(Column newColumn) {
+    private void validateColumn(final Column<?> newColumn) {
         Preconditions.checkNotNull(newColumn, "Attempted to add a null to the columns in table " + name);
         List<String> stringList = new ArrayList<>();
         for (String name : columnNames()) {
@@ -258,7 +167,7 @@ public class Table extends Relation implements IntIterable {
      * @param index  Zero-based index into the column list
      * @param column Column to be added
      */
-    public Table addColumn(int index, Column column) {
+    public Table insertColumn(int index, Column<?> column) {
         validateColumn(column);
         columnList.add(index, column);
         return this;
@@ -270,9 +179,9 @@ public class Table extends Relation implements IntIterable {
      * @param colIndex  Zero-based index of the column to be replaced
      * @param newColumn Column to be added
      */
-    public Table replaceColumn(int colIndex, Column newColumn) {       
+    public Table replaceColumn(final int colIndex, final Column<?> newColumn) {
         removeColumns(column(colIndex));
-        addColumn(colIndex, newColumn);
+        insertColumn(colIndex, newColumn);
         return this;
     }
 
@@ -282,7 +191,7 @@ public class Table extends Relation implements IntIterable {
      * @param columnName String name of the column to be replaced
      * @param newColumn  Column to be added
      */
-    public Table replaceColumn(String columnName, Column newColumn) {
+    public Table replaceColumn(final String columnName, final Column<?> newColumn) {
         int colIndex = columnIndex(columnName);
         replaceColumn(colIndex, newColumn);
         return this;
@@ -303,7 +212,7 @@ public class Table extends Relation implements IntIterable {
      * @param columnIndex an integer at least 0 and less than number of columns in the table
      */
     @Override
-    public Column column(int columnIndex) {
+    public Column<?> column(int columnIndex) {
         return columnList.get(columnIndex);
     }
 
@@ -332,17 +241,21 @@ public class Table extends Relation implements IntIterable {
      * Returns the list of columns
      */
     @Override
-    public List<Column> columns() {
+    public List<Column<?>> columns() {
         return columnList;
+    }
+
+    public Column<?>[] columnArray() {
+        return columnList.toArray(new Column<?>[columnCount()]);
     }
 
     /**
      * Returns only the columns whose names are given in the input array
      */
-    public List<Column> columns(String... columnNames) {
-        List<Column> columns = new ArrayList<>();
+    public List<CategoricalColumn<?>> categoricalColumns(String... columnNames) {
+        List<CategoricalColumn<?>> columns = new ArrayList<>();
         for (String columnName : columnNames) {
-            columns.add(column(columnName));
+            columns.add(categoricalColumn(columnName));
         }
         return columns;
     }
@@ -372,7 +285,7 @@ public class Table extends Relation implements IntIterable {
      *
      * @throws IllegalArgumentException if the column is not present in this table
      */
-    public int columnIndex(Column column) {
+    public int columnIndex(Column<?> column) {
         int columnIndex = -1;
         for (int i = 0; i < columnList.size(); i++) {
             if (columnList.get(i).equals(column)) {
@@ -405,31 +318,20 @@ public class Table extends Relation implements IntIterable {
     }
 
     /**
-     * Returns a string representation of the value at the given row and column indexes
-     *
-     * @param r the row index, 0 based
-     * @param c the column index, 0 based
-     */
-    @Override
-    public String get(int r, int c) {
-        Column column = column(c);
-        return column.getString(r);
-    }
-
-    /**
      * Returns a table with the same columns as this table
      */
-    public Table fullCopy() {
-      Table copy = new Table(name);
-      for (Column column : columnList) {
-        copy.addColumn(column.emptyCopy());
-      }
+    public Table copy() {
+        Table copy = new Table(name);
+        for (Column<?> column : columnList) {
+            copy.addColumns(column.emptyCopy(rowCount()));
+        }
 
-      IntArrayList integers = new IntArrayList();
-      for(int i = 0; i < rowCount(); i++)
-        integers.add(i);
-      Rows.copyRowsToTable(integers,this,copy);
-      return copy;
+        int[] rows = new int[rowCount()];
+        for (int i = 0; i < rowCount(); i++) {
+            rows[i] = i;
+        }
+        Rows.copyRowsToTable(rows, this, copy);
+        return copy;
     }
 
     /**
@@ -437,8 +339,8 @@ public class Table extends Relation implements IntIterable {
      */
     public Table emptyCopy() {
         Table copy = new Table(name);
-        for (Column column : columnList) {
-            copy.addColumn(column.emptyCopy());
+        for (Column<?> column : columnList) {
+            copy.addColumns(column.emptyCopy());
         }
         return copy;
     }
@@ -448,8 +350,8 @@ public class Table extends Relation implements IntIterable {
      */
     public Table emptyCopy(int rowSize) {
         Table copy = new Table(name);
-        for (Column column : columnList) {
-            copy.addColumn(column.emptyCopy(rowSize));
+        for (Column<?> column : columnList) {
+            copy.addColumns(column.emptyCopy(rowSize));
         }
         return copy;
     }
@@ -472,13 +374,13 @@ public class Table extends Relation implements IntIterable {
         }
         Selection table1Selection = new BitmapBackedSelection();
 
-        int[] table1Records = generateUniformBitmap(table1Count, rowCount());
+        Selection table1Records = selectNRowsAtRandom(table1Count, rowCount());
         for (int table1Record : table1Records) {
             table1Selection.add(table1Record);
         }
         table2Selection.andNot(table1Selection);
-        tables[0] = selectWhere(table1Selection);
-        tables[1] = selectWhere(table2Selection);
+        tables[0] = where(table1Selection);
+        tables[1] = where(table2Selection);
         return tables;
     }
 
@@ -488,16 +390,23 @@ public class Table extends Relation implements IntIterable {
      *
      * @param proportion The proportion to go in the sample
      */
-    public Table sample(double proportion) {
+    public Table sampleX(double proportion) {
+        Preconditions.checkArgument(proportion <= 1 && proportion >= 0,
+                "The sample proportion must be between 0 and 1");
 
-        int tableCount = (int) Math.round(rowCount() * proportion);
+        int tableSize = (int) Math.round(rowCount() * proportion);
+        return where(selectNRowsAtRandom(tableSize, rowCount()));
+    }
 
-        Selection table1Selection = new BitmapBackedSelection();
-        int[] selectedRecords = generateUniformBitmap(tableCount, rowCount());
-        for (int selectedRecord : selectedRecords) {
-            table1Selection.add(selectedRecord);
-        }
-        return selectWhere(table1Selection);
+    /**
+     * Returns a table consisting of randomly selected records from this table
+     *
+     * @param nRows The number of rows to go in the sample
+     */
+    public Table sampleN(int nRows) {
+        Preconditions.checkArgument(nRows > 0 && nRows < rowCount(),
+                "The number of rows sampled must be greater than 0 and less than the number of rows in the table.");
+        return where(selectNRowsAtRandom(nRows, rowCount()));
     }
 
     /**
@@ -512,20 +421,29 @@ public class Table extends Relation implements IntIterable {
      * Returns a new table containing the first {@code nrows} of data in this table
      */
     public Table first(int nRows) {
-        nRows = Math.min(nRows, rowCount());
-        Table newTable = emptyCopy(nRows);
-        Rows.head(nRows, this, newTable);
-        return newTable;
+        int newRowCount = Math.min(nRows, rowCount());
+        return inRange(0, newRowCount);
     }
 
     /**
      * Returns a new table containing the last {@code nrows} of data in this table
      */
     public Table last(int nRows) {
-        nRows = Math.min(nRows, rowCount());
-        Table newTable = emptyCopy(nRows);
-        Rows.tail(nRows, this, newTable);
-        return newTable;
+        int newRowCount = Math.min(nRows, rowCount());
+        return inRange(rowCount() - newRowCount, rowCount());
+    }
+
+    /**
+     * Sorts this table into a new table on the columns indexed in ascending order
+     * <p>
+     * TODO(lwhite): Rework this so passing an negative number does a descending sort
+     */
+    public Table sortOn(int... columnIndexes) {
+        List<String> names = new ArrayList<>();
+        for (int i : columnIndexes) {
+            names.add(columnList.get(i).name());
+        }
+        return sortOn(names.toArray(new String[names.size()]));
     }
 
     /**
@@ -542,10 +460,10 @@ public class Table extends Relation implements IntIterable {
         }
 
         for (String columnName : columnNames) {
-            Order order;
+            Sort.Order order;
             if (names.contains(columnName.toUpperCase())) {
                 // the column name has not been annotated with a prefix.
-                order = Order.ASCEND;
+                order = Sort.Order.ASCEND;
             } else {
 
                 // get the prefix which could be - or +
@@ -556,10 +474,10 @@ public class Table extends Relation implements IntIterable {
 
                 switch (prefix) {
                     case "+":
-                        order = Order.ASCEND;
+                        order = Sort.Order.ASCEND;
                         break;
                     case "-":
-                        order = Order.DESCEND;
+                        order = Sort.Order.DESCEND;
                         break;
                     default:
                         throw new IllegalStateException("Column prefix: " + prefix + " is unknown.");
@@ -584,6 +502,7 @@ public class Table extends Relation implements IntIterable {
 
     /**
      * Returns a copy of this table sorted on the given column names, applied in order, descending
+     * TODO: Provide equivalent methods naming columns by index
      */
     public Table sortDescendingOn(String... columnNames) {
         Sort key = getSort(columnNames);
@@ -595,57 +514,46 @@ public class Table extends Relation implements IntIterable {
     public Table sortOn(Sort key) {
         Preconditions.checkArgument(!key.isEmpty());
         if (key.size() == 1) {
-            IntComparator comparator = getComparator(key);
+            IntComparator comparator = SortUtils.getComparator(this, key);
             return sortOn(comparator);
         }
-        IntComparatorChain chain = getChain(key);
+        IntComparatorChain chain = SortUtils.getChain(this, key);
         return sortOn(chain);
-    }
-
-    /**
-     * Returns a comparator that can be used to sort the records in this table according to the given sort key
-     */
-    private IntComparator getComparator(Sort key) {
-        Iterator<Map.Entry<String, Sort.Order>> entries = key.iterator();
-        Map.Entry<String, Sort.Order> sort = entries.next();
-        return rowComparator(sort.getKey(), sort.getValue());
-    }
-
-    /**
-     * Returns a comparator chain for sorting according to the given key
-     */
-    private IntComparatorChain getChain(Sort key) {
-        Iterator<Map.Entry<String, Sort.Order>> entries = key.iterator();
-        Map.Entry<String, Sort.Order> sort = entries.next();
-
-        IntComparator comparator = rowComparator(sort.getKey(), sort.getValue());
-
-        IntComparatorChain chain = new IntComparatorChain(comparator);
-        while (entries.hasNext()) {
-            sort = entries.next();
-            chain.addComparator(rowComparator(sort.getKey(), sort.getValue()));
-        }
-        return chain;
     }
 
     /**
      * Returns a copy of this table sorted using the given comparator
      */
-    public Table sortOn(IntComparator rowComparator) {
+    private Table sortOn(IntComparator rowComparator) {
         Table newTable = emptyCopy(rowCount());
 
         int[] newRows = rows();
         IntArrays.parallelQuickSort(newRows, rowComparator);
 
-        Rows.copyRowsToTable(IntArrayList.wrap(newRows), this, newTable);
+        Rows.copyRowsToTable(newRows, this, newTable);
         return newTable;
+    }
+
+    /**
+     * Returns a copy of this table sorted using the given comparator
+     */
+    public Table sortOn(Comparator<Row> rowComparator) {
+        Row row1 = new Row(this);
+        Row row2 = new Row(this);
+        return sortOn(new IntComparator() {
+            @Override
+            public int compare(int k1, int k2) {
+                row1.at(k1);
+                row2.at(k2);
+                return rowComparator.compare(row1, row2);
+            }
+        });
     }
 
     /**
      * Returns an array of ints of the same number of rows as the table
      */
-    @VisibleForTesting
-    public int[] rows() {
+    private int[] rows() {
         int[] rowIndexes = new int[rowCount()];
         for (int i = 0; i < rowCount(); i++) {
             rowIndexes[i] = i;
@@ -654,71 +562,88 @@ public class Table extends Relation implements IntIterable {
     }
 
     /**
-     * Returns a comparator for the column matching the specified name
+     * Adds a single row to this table from sourceTable, copying every column in sourceTable
      *
-     * @param columnName The name of the column to sort
-     * @param reverse    {@code true} if the column should be sorted in reverse
+     * @param rowIndex      The row in sourceTable to add to this table
+     * @param sourceTable   A table with the same column structure as this table
      */
-    private IntComparator rowComparator(String columnName, Order order) {
-        Column column = this.column(columnName);
-        IntComparator rowComparator = column.rowComparator();
-
-        if (order == Order.DESCEND) {
-            return ReversingIntComparator.reverse(rowComparator);
-        } else {
-            return rowComparator;
+    public void addRow(int rowIndex, Table sourceTable) {
+        for (int i = 0; i < columnCount(); i++) {
+            column(i).appendObj(sourceTable.column(i).get(rowIndex));
         }
     }
 
-    public Table selectWhere(Selection selection) {
+    public void addRow(Row row) {
+        for (int i = 0; i < row.columnCount(); i++) {
+            column(i).appendObj(row.getObject(i));
+        }
+    }
+
+    public Table rows(int... rowNumbers) {
+        Preconditions.checkArgument(Ints.max(rowNumbers) <= rowCount());
+        return where(Selection.with(rowNumbers));
+    }
+
+    public Table dropRows(int... rowNumbers) {
+        Preconditions.checkArgument(Ints.max(rowNumbers) <= rowCount());
+        Selection selection = Selection.withRange(0, rowCount())
+                .andNot(Selection.with(rowNumbers));
+        return where(selection);
+    }
+
+    public Table inRange(int rowStart, int rowEnd) {
+        Preconditions.checkArgument(rowEnd <= rowCount());
+        return where(Selection.withRange(rowStart, rowEnd));
+    }
+
+    public Table dropRange(int rowStart, int rowEnd) {
+        Preconditions.checkArgument(rowEnd <= rowCount());
+        return where(Selection.withoutRange(0, rowCount(), rowStart, rowEnd));
+    }
+
+    public Table where(Selection selection) {
         Table newTable = this.emptyCopy(selection.size());
         Rows.copyRowsToTable(selection, this, newTable);
         return newTable;
     }
 
-    public BooleanColumn selectIntoColumn(String newColumnName, Selection selection) {
-        return new BooleanColumn(newColumnName, selection, rowCount());
-    }
-
-    public Table selectWhere(Filter filter) {
-        Selection map = filter.apply(this);
-        Table newTable = this.emptyCopy(map.size());
-        Rows.copyRowsToTable(map, this, newTable);
+    public Table dropWhere(Selection selection) {
+        Selection opposite = new BitmapBackedSelection();
+        opposite.addRange(0, rowCount());
+        opposite.andNot(selection);
+        Table newTable = this.emptyCopy(opposite.size());
+        Rows.copyRowsToTable(opposite, this, newTable);
         return newTable;
     }
 
-    public BooleanColumn selectIntoColumn(String newColumnName, Filter filter) {
-        return new BooleanColumn(newColumnName, filter.apply(this), rowCount());
+    /**
+     * Returns a non-overlapping and exhaustive collection of "slices" over this table.
+     * Each slice is like a virtual table containing a subset of the records in this table
+     *
+     * This method is intended for advanced or unusual operations on the subtables.
+     * If you want to calculate summary statistics for each subtable, the summarize methods (e.g)
+     *
+     * table.summarize(myColumn, mean, median).by(columns)
+     *
+     * are preferred
+     */
+    public TableSliceGroup splitOn(String... columns) {
+        return splitOn(categoricalColumns(columns).toArray(new CategoricalColumn<?>[columns.length]));
     }
 
     /**
-     * The first stage of a split-apply-combine operation
+     * Returns a non-overlapping and exhaustive collection of "slices" over this table.
+     * Each slice is like a virtual table containing a subset of the records in this table
+     *
+     * This method is intended for advanced or unusual operations on the subtables.
+     * If you want to calculate summary statistics for each subtable, the summarize methods (e.g)
+     *
+     * table.summarize(myColumn, mean, median).by(columns)
+     *
+     * are preferred
      */
-    public ViewGroup groupBy(String... columns) {
-      return groupBy(columns(columns).toArray(new Column[columns.length]));
-    }
-
-    /**
-     * The first stage of a split-apply-combine operation
-     */
-    public ViewGroup groupBy(Column... columns) {
-      return new ViewGroup(this, columns);
-    }
-
-    /**
-     * Synonymous with groupBy
-     * The first stage of a split-apply-combine operation
-     */
-    public ViewGroup splitOn(String... columns) {
-        return groupBy(columns);
-    }
-
-    /**
-     * Synonymous with groupBy
-     * The first stage of a split-apply-combine operation
-     */
-    public ViewGroup splitOn(Column... columns) {
-        return groupBy(columns);
+    public TableSliceGroup splitOn(CategoricalColumn<?>... columns) {
+        return StandardTableSliceGroup.create(this, columns);
     }
 
     public String printHtml() {
@@ -727,108 +652,26 @@ public class Table extends Relation implements IntIterable {
 
     public Table structure() {
         Table t = new Table("Structure of " + name());
-        IntColumn index = new IntColumn("Index", columnCount());
-        CategoryColumn columnName = new CategoryColumn("Column Name", columnCount());
-        CategoryColumn columnType = new CategoryColumn("Column Type", columnCount());
-        t.addColumn(index);
-        t.addColumn(columnName);
-        t.addColumn(columnType);
-        columnName.addAll(columnNames());
+
+        IntColumn index = IntColumn.indexColumn("Index", columnCount(), 0);
+        StringColumn columnName = StringColumn.create("Column Name", columnCount());
+        StringColumn columnType = StringColumn.create("Column Type", columnCount());
+        t.addColumns(index);
+        t.addColumns(columnName);
+        t.addColumns(columnType);
         for (int i = 0; i < columnCount(); i++) {
-            Column column = columnList.get(i);
-            index.append(i);
-            columnType.append(column.type().name());
+            Column<?> column = columnList.get(i);
+            columnType.set(i, column.type().name());
+            columnName.set(i, columnNames().get(i));
         }
         return t;
-    }
-
-    /**
-     * Returns a table with the given rows selected
-     * @param row the row to select
-     * @return the table with the selected rows
-     */
-    public Table selectRow(int row) {
-      return selectRows(row, row);
-    }
-    
-    /**
-     * Returns a table with the given rows selected
-     * @param rows the rows to select
-     * @return the table with the selected rows
-     */
-    public Table selectRows(Collection<Integer> rows) {
-      Table newTable = emptyCopy();
-      Rows.copyRowsToTable(new IntArrayList(rows), this, newTable);
-      return newTable;
-
-    }
-
-    /**
-     * Returns a table with the given rows selected
-     * @param start the first row to select
-     * @param end the last row to select
-     * @return the table with the selected rows
-     */
-    public Table selectRows(int start, int end) {
-      Table newTable = emptyCopy();
-      IntArrayList rowsToKeep = new IntArrayList();
-      for (int i = 0; i < rowCount(); i++) {
-        if (i >= start && i <= end) {
-          rowsToKeep.add(i);
-        }
-      }
-      Rows.copyRowsToTable(rowsToKeep, this, newTable);
-      return newTable;
-    }
-
-    /**
-     * Returns a table with the given rows dropped
-     * @param row the row to drop
-     * @return the table with the dropped rows
-     */
-    public Table dropRow(int row) {
-      return dropRows(row, row);
-    }
-
-    /**
-     * Returns a table with the given rows dropped
-     * @param rows the rows to drop
-     * @return the table with the dropped rows
-     */
-    public Table dropRows(Collection<Integer> rows) {
-      Table newTable = emptyCopy();
-      IntArrayList rowsToKeep = new IntArrayList();
-      for (int i = 0; i < rowCount(); i++) {
-        rowsToKeep.add(i);
-      }
-      rowsToKeep.removeAll(new IntArrayList(rows));
-      Rows.copyRowsToTable(rowsToKeep, this, newTable);
-      return newTable;
-    }
-
-    /**
-     * Returns a table with the given rows dropped
-     * @param start the first row to drop
-     * @param end the last row to drop
-     * @return the table with the dropped rows
-     */
-    public Table dropRows(int start, int end) {
-      Table newTable = emptyCopy();
-      IntArrayList rowsToKeep = new IntArrayList();
-      for (int i = 0; i < rowCount(); i++) {
-        if (i < start || i > end) {
-          rowsToKeep.add(i);
-        }
-      }
-      Rows.copyRowsToTable(rowsToKeep, this, newTable);
-      return newTable;
     }
 
     /**
      * Returns the unique records in this table
      * Note: Uses a lot of memory for a sort
      */
-    public Table uniqueRecords() {
+    public Table dropDuplicateRows() {
 
         Table sorted = this.sortOn(columnNames().toArray(new String[columns().size()]));
         Table temp = emptyCopy();
@@ -841,166 +684,344 @@ public class Table extends Relation implements IntIterable {
         return temp;
     }
 
-    public Projection select(String... columnName) {
-        return new Projection(this, columnName);
+    /**
+     * Returns only those records in this table that have no columns with missing values
+     */
+    public Table dropRowsWithMissingValues() {
+
+        Selection missing = new BitmapBackedSelection();
+
+        for (int row = 0; row < rowCount(); row++) {
+            for (int col = 0; col < columnCount(); col++) {
+                Column<?> c = column(col);
+                if (c.isMissing(row)) {
+                    missing.add(row);
+                    break;
+                }
+            }
+        }
+        Selection notMissing = Selection.withRange(0, rowCount());
+        notMissing.andNot(missing);
+        Table temp = emptyCopy(notMissing.size());
+        Rows.copyRowsToTable(notMissing, this, temp);
+        return temp;
+    }
+
+    public Table select(Column<?>... columns) {
+        return new Table(this.name, columns);
+    }
+
+    public Table select(String... columnNames) {
+        return Table.create(this.name, columns(columnNames).toArray(new Column<?>[0]));
     }
 
     /**
      * Removes the given columns
      */
     @Override
-    public Table removeColumns(Column... columns) {
+    public Table removeColumns(Column<?>... columns) {
         columnList.removeAll(Arrays.asList(columns));
         return this;
     }
 
     /**
-     * Removes the given column from this table and returns it
-     *
-     * @throws IllegalStateException if the given columnName does not match the name of a column in the table
+     * Removes the given columns with missing values
      */
-    public Column getAndRemoveColumn(String columnName) {
-        Column c = column(columnName);
-        removeColumns(c);
-        return c;
+    public Table removeColumnsWithMissingValues() {
+        removeColumns(columnList.stream().filter(x -> x.countMissing() > 0).toArray(Column<?>[]::new));
+        return this;
     }
 
     /**
-     * Removes the given column from this table and returns it
-     *
-     * @throws IndexOutOfBoundsException if the given columnIndex does not match any column in the table
+     * Removes all columns except for those given in the argument from this table
      */
-    public Column getAndRemoveColumn(int columnIndex) {
-        Column c = column(columnIndex);
-        removeColumns(c);
-        return c;
+    public Table retainColumns(Column<?>... columns) {
+        List<Column<?>> retained = Arrays.asList(columns);
+        columnList.clear();
+        columnList.addAll(retained);
+        return this;
     }
 
     /**
-     * Removes the given columns from this table
+     * Removes all columns except for those given in the argument from this table
      */
-    public void retainColumns(Column... columns) {
-        List<Column> retained = Arrays.asList(columns);
-        columnList.retainAll(retained);
+    public Table retainColumns(String... columnNames) {
+        List<Column<?>> retained = columns(columnNames);
+        columnList.clear();
+        columnList.addAll(retained);
+        return this;
     }
 
-    public void retainColumns(String... columnNames) {
-        columnList.retainAll(columns(columnNames));
-    }
-
-    public SummaryFunction sum(String numericColumnName) {
-        return new SummaryFunction(this, numericColumnName, sum);
-    }
-    public SummaryFunction mean(String numericColumnName) {
-        return new SummaryFunction(this, numericColumnName, mean);
-    }
-    public SummaryFunction median(String numericColumnName) {
-        return new SummaryFunction(this, numericColumnName, median);
-    }
-    public SummaryFunction variance(String numericColumnName) {
-        return new SummaryFunction(this, numericColumnName, variance);
-    }
-    public SummaryFunction stdDev(String numericColumnName) {
-        return new SummaryFunction(this, numericColumnName, stdDev);
-    }
-
-    public SummaryFunction count(String numericColumnName) {
-        return new SummaryFunction(this, numericColumnName, count);
-    }
-
-    public SummaryFunction max(String numericColumnName) {
-        return new SummaryFunction(this, numericColumnName, max);
-    }
-
-    public SummaryFunction min(String numericColumnName) {
-      return new SummaryFunction(this, numericColumnName, min);
-    }
-
-    public void append(Table tableToAppend) {
-        for (Column column : columnList) {
-            Column columnToAppend = tableToAppend.column(column.name());
+    @SuppressWarnings({"rawtypes", "unchecked"})
+    public Table append(Table tableToAppend) {
+        for (final Column column : columnList) {
+            final Column columnToAppend = tableToAppend.column(column.name());
             column.append(columnToAppend);
         }
-    }
-
-    public String save(String folder) {
-        String storageFolder = "";
-        try {
-            storageFolder = StorageManager.saveTable(folder, this);
-        } catch (IOException e) {
-            System.err.println("Unable to save table in Tablesaw format");
-            e.printStackTrace();
-        }
-        return storageFolder;
+        return this;
     }
 
     /**
-     * Returns the result of applying the given aggregate function to the specified column
-     *
-     * @param numericColumnName The name of a numeric (integer, float, etc.) column in this table
-     * @param function          An aggregation function
-     * @return the function result
-     * @throws IllegalArgumentException if numericColumnName doesn't name a numeric column in this table
+     * Add all the columns of tableToConcatenate to this table
+     * Note: The columns in the result must have unique names, when compared case insensitive
+     * Note: Both tables must have the same number of rows
+     * @param tableToConcatenate    The table containing the columns to be added
+     * @return                      This table
      */
-    public double agg(String numericColumnName, AggregateFunction function) {
-        Column column = column(numericColumnName);
-        return function.agg(column.asDoubleArray());
+    public Table concat(Table tableToConcatenate) {
+        Preconditions.checkArgument(tableToConcatenate.rowCount() == this.rowCount(),
+                "Both tables must have the same number of rows to concatenate them.");
+        for (Column<?> column : tableToConcatenate.columns()) {
+            this.addColumns(column);
+        }
+        return this;
     }
 
-    public SummaryFunction summarize(String numericColumnName, AggregateFunction function) {
-        return new SummaryFunction(this, numericColumnName, function);
+    public Summarizer summarize(String columName, AggregateFunction<?, ?>... functions) {
+        return summarize(column(columName), functions);
     }
 
-    public Table countBy(CategoryColumn column) {
-        return column.countByCategory();
+    public Summarizer summarize(List<String> columnNames, AggregateFunction<?, ?>... functions) {
+        return new Summarizer(this, columnNames, functions);
+    }
+
+    public Summarizer summarize(String numericColumn1Name, String numericColumn2Name, AggregateFunction<?, ?>... functions) {
+        return summarize(column(numericColumn1Name), column(numericColumn2Name), functions);
+    }
+
+    public Summarizer summarize(String col1Name, String col2Name, String col3Name, AggregateFunction<?, ?>... functions) {
+        return summarize(column(col1Name), column(col2Name), column(col3Name), functions);
+    }
+
+    public Summarizer summarize(String col1Name, String col2Name, String col3Name, String col4Name, AggregateFunction<?, ?>... functions) {
+        return summarize(column(col1Name), column(col2Name), column(col3Name), column(col4Name), functions);
+    }
+
+    public Summarizer summarize(Column<?> numberColumn, AggregateFunction<?, ?>... function) {
+        return new Summarizer(this, numberColumn, function);
+    }
+
+    public Summarizer summarize(Column<?> column1, Column<?> column2,
+                                AggregateFunction<?, ?>... function) {
+        return new Summarizer(this, column1, column2, function);
+    }
+
+    public Summarizer summarize(Column<?> column1, Column<?> column2, Column<?> column3,
+                                AggregateFunction<?, ?>... function) {
+        return new Summarizer(this, column1, column2, column3, function);
+    }
+
+    public Summarizer summarize(Column<?> column1, Column<?> column2, Column<?> column3, Column<?> column4,
+                                AggregateFunction<?, ?>... function) {
+        return new Summarizer(this, column1, column2, column3, column4, function);
     }
 
     /**
-     * Returns the first row for which the column {@code columnName} contains {@code value}, or
-     * null if there are no matches
-     * TODO(lwhite) This is a toy implementation badly in need of rewrite for performance.
+     * Returns a table with n by m + 1 cells. The first column contains labels, the other cells contains the counts for every unique
+     * combination of values from the two specified columns in this table
      */
-    public int getFirst(Column column, String value) {
-        int row = -1;
-        for (int r : this) {
-            if (column.getString(r).equals(value)) {
-                row = r;
-                break;
-            }
-        }
-        return row;
+    public Table xTabCounts(String column1Name, String column2Name) {
+        return CrossTab.counts(this, categoricalColumn(column1Name), categoricalColumn(column2Name));
     }
 
-    public DataFrameJoiner join(String columnName) {
-      return new DataFrameJoiner(this, columnName);
+    public Table xTabRowPercents(String column1Name, String column2Name) {
+        return CrossTab.rowPercents(this, column1Name, column2Name);
+    }
+
+    public Table xTabColumnPercents(String column1Name, String column2Name) {
+        return CrossTab.columnPercents(this, column1Name, column2Name);
+    }
+
+    /**
+     * Returns a table with n by m + 1 cells. The first column contains labels, the other cells contains the proportion
+     * for a unique combination of values from the two specified columns in this table
+     */
+    public Table xTabTablePercents(String column1Name, String column2Name) {
+        return CrossTab.tablePercents(this, column1Name, column2Name);
+    }
+
+    /**
+     * Returns a table with two columns, the first contains a value each unique value in the argument,
+     * and the second contains the proportion of observations having that value
+     */
+    public Table xTabPercents(String column1Name) {
+        return CrossTab.percents(this, column1Name);
+    }
+
+    /**
+     * Returns a table with two columns, the first contains a value each unique value in the argument,
+     * and the second contains the number of observations of each value
+     */
+    public Table xTabCounts(String column1Name) {
+        return CrossTab.counts(this, column1Name);
+    }
+
+    /**
+     * Returns a table containing two columns, the grouping column, and a column named "Count" that contains
+     * the counts for each grouping column value
+     */
+    public Table countBy(CategoricalColumn<?> groupingColumn) {
+        return groupingColumn.countByCategory();
+    }
+
+    /**
+     * Returns a new DataFrameJoiner initialized with multiple {@code columnNames}
+     * @param columnNames   Name of the columns to join on.
+     * @return              The new DataFrameJoiner
+     */
+    public DataFrameJoiner join(String... columnNames) {
+        return new DataFrameJoiner(this, columnNames);
+	}
+
+    public Table missingValueCounts() {
+        return summarize(columnNames(), countMissing).apply();
     }
 
     @Override
-    public IntIterator iterator() {
+    public Iterator<Row> iterator() {
 
-        return new IntIterator() {
+        return new Iterator<Row>() {
 
-            private int i = 0;
-
-            @Override
-            public int nextInt() {
-                return i++;
-            }
+            final private Row row = new Row(Table.this);
 
             @Override
-            public int skip(int k) {
-                return i + k;
+            public Row next() {
+                return row.next();
             }
 
             @Override
             public boolean hasNext() {
-                return i < rowCount();
-            }
-
-            @Override
-            public Integer next() {
-                return i++;
+                return row.hasNext();
             }
         };
+    }
+
+    /**
+     * Applies the operation in {@code doable} to every row in the table
+     */
+    public void doWithRows(Consumer<Row> doable) {
+        Row row = new Row(this);
+        while (row.hasNext()) {
+            doable.accept(row.next());
+        }
+    }
+
+    /**
+     * Applies the predicate to each row, and return true if any row returns true
+     */
+    public boolean detect(Predicate<Row> predicate) {
+        Row row = new Row(this);
+        while (row.hasNext()) {
+            if (predicate.test(row.next())) {
+                return true;
+            }
+        }
+        return false;
+    }
+
+    /**
+     * Applies the operation in {@code doable} to every row in the table
+     */
+    public void stepWithRows(Consumer<Row[]> rowConsumer, int n) {
+        if (!isEmpty()) {
+            Row[] rows = new Row[n];
+            for (int i = 0; i < n; i++) {
+                rows[i] = new Row(this);
+            }
+
+            int max = rowCount() - n;
+            for (int i = 0; i <= max; i++) {
+                for (int r = 0; r < n; r++) {
+                    rows[r].at(i + r);
+                }
+                rowConsumer.accept(rows);
+            }
+        }
+    }
+
+    /**
+     * Applies the function in {@code pairs} to each consecutive pairs of rows in the table
+     */
+    public void doWithRows(Pairs pairs) {
+        Row row1 = new Row(this);
+        Row row2 = new Row(this);
+        if (!isEmpty()) {
+            int max = rowCount();
+            for (int i = 1; i < max; i++) {
+                row1.at(i - 1);
+                row2.at(i);
+                pairs.doWithPair(row1, row2);
+            }
+        }
+    }
+
+    /**
+     * Applies the function in {@code pairs} to each consecutive pairs of rows in the table
+     */
+    public void doWithRowPairs(Consumer<RowPair> pairConsumer) {
+        Row row1 = new Row(this);
+        Row row2 = new Row(this);
+        RowPair pair = new RowPair(row1, row2);
+        if (!isEmpty()) {
+            int max = rowCount();
+            for (int i = 1; i < max; i++) {
+                row1.at(i - 1);
+                row2.at(i);
+                pairConsumer.accept(pair);
+            }
+        }
+    }
+
+    /**
+     * Applies the function in {@code pairs} to each group of contiguous rows of size n in the table
+     * This can be used, for example, to calculate a running average of in rows
+     */
+    public void rollWithRows(Consumer<Row[]> rowConsumer, int n) {
+        if (!isEmpty()) {
+            Row[] rows = new Row[n];
+            for (int i = 0; i < n; i++) {
+                rows[i] = new Row(this);
+            }
+
+            int max = rowCount() - (n - 2);
+            for (int i = 1; i < max; i++) {
+                for (int r = 0; r < n; r++) {
+                    rows[r].at(i + r - 1);
+                }
+                rowConsumer.accept(rows);
+            }
+        }
+    }
+
+    public static class RowPair {
+        private final Row first;
+        private final Row second;
+
+        public RowPair(Row first, Row second) {
+            this.first = first;
+            this.second = second;
+        }
+
+        public Row getFirst() {
+            return first;
+        }
+
+        public Row getSecond() {
+            return second;
+        }
+    }
+
+    interface Pairs {
+
+        void doWithPair(Row row1, Row row2);
+
+        /**
+         * Returns an object containing the results of applying doWithPair() to the rows in a table.
+         *
+         * The default implementation throws an exception, to be used if the operation produces only side effects
+         */
+        default Object getResult() {
+            throw new UnsupportedOperationException("This Pairs function returns no results");
+        }
     }
 }

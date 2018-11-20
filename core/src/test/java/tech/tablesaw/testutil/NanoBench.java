@@ -31,7 +31,7 @@ import java.util.logging.Logger;
 public class NanoBench {
 
     private static final Logger logger = Logger.getLogger(NanoBench.class.getSimpleName());
-    static int[] arrayStress = new int[10000];
+    private static int[] arrayStress = new int[10000];
     private int numberOfMeasurement = 50;
     private int numberOfWarmUp = 20;
     private List<MeasureListener> listeners;
@@ -61,14 +61,14 @@ public class NanoBench {
     }
 
     public NanoBench cpuAndMemory() {
-        listeners = new ArrayList<MeasureListener>(2);
+        listeners = new ArrayList<>(2);
         listeners.add(new CPUMeasure(logger));
         listeners.add(new MemoryUsage(logger));
         return this;
     }
 
     public NanoBench bytesOnly() {
-        listeners = new ArrayList<MeasureListener>(1);
+        listeners = new ArrayList<>(1);
         listeners.add(new BytesMeasure(logger));
         return this;
     }
@@ -78,13 +78,13 @@ public class NanoBench {
     }
 
     public NanoBench cpuOnly() {
-        listeners = new ArrayList<MeasureListener>(1);
+        listeners = new ArrayList<>(1);
         listeners.add(new CPUMeasure(logger));
         return this;
     }
 
     public NanoBench memoryOnly() {
-        listeners = new ArrayList<MeasureListener>(1);
+        listeners = new ArrayList<>(1);
         listeners.add(new MemoryUsage(logger));
         return this;
     }

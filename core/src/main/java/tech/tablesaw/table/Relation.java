@@ -14,8 +14,9 @@
 
 package tech.tablesaw.table;
 
+import it.unimi.dsi.fastutil.ints.IntArrays;
 import tech.tablesaw.api.BooleanColumn;
-import tech.tablesaw.api.CategoryColumn;
+import tech.tablesaw.api.CategoricalColumn;
 import tech.tablesaw.api.ColumnType;
 import tech.tablesaw.api.DateColumn;
 import tech.tablesaw.api.DateTimeColumn;
@@ -23,22 +24,30 @@ import tech.tablesaw.api.DoubleColumn;
 import tech.tablesaw.api.FloatColumn;
 import tech.tablesaw.api.IntColumn;
 import tech.tablesaw.api.LongColumn;
+import tech.tablesaw.api.NumberColumn;
 import tech.tablesaw.api.NumericColumn;
 import tech.tablesaw.api.ShortColumn;
+import tech.tablesaw.api.StringColumn;
 import tech.tablesaw.api.Table;
+import tech.tablesaw.api.TextColumn;
 import tech.tablesaw.api.TimeColumn;
 import tech.tablesaw.columns.Column;
+import tech.tablesaw.conversion.SmileConverter;
+import tech.tablesaw.conversion.TableConverter;
 import tech.tablesaw.io.string.DataFramePrinter;
+import tech.tablesaw.sorting.comparators.DescendingIntComparator;
 
 import java.io.ByteArrayOutputStream;
+import java.util.ArrayList;
 import java.util.List;
+import java.util.stream.Collectors;
 
 /**
  * A tabular data structure like a table in a relational database, but not formally implementing the relational algebra
  */
 public abstract class Relation {
 
-    public abstract Relation addColumn(Column... cols);
+    public abstract Relation addColumns(Column<?>... cols);
 
     public abstract Relation setName(String name);
 
@@ -50,23 +59,32 @@ public abstract class Relation {
         return rowCount() + " rows X " + columnCount() + " cols";
     }
 
-    public Relation removeColumn(int columnIndex) {
-        removeColumns(column(columnIndex));
+    public Relation removeColumns(int... columnIndexes) {
+        IntArrays.quickSort(columnIndexes, DescendingIntComparator.instance());
+        for (int i : columnIndexes) {
+            removeColumns(column(i));
+        }
         return this;
     }
 
     /**
      * Removes the given columns from the receiver
      */
-    public abstract Relation removeColumns(Column... columns);
+    public abstract Relation removeColumns(Column<?>... columns);
 
     public Relation removeColumns(String... columnName) {
-        Column[] cols = new Column[columnName.length];
+        Column<?>[] cols = new Column<?>[columnName.length];
         for (int i = 0; i < columnName.length; i++) {
             cols[i] = column(columnName[i]);
         }
         removeColumns(cols);
         return this;
+    }
+
+    public List<Column<?>> columnsOfType(ColumnType type) {
+        return columns().stream()
+                .filter(column -> column.type() == type)
+                .collect(Collectors.toList());
     }
 
     public abstract Table first(int nRows);
@@ -87,8 +105,8 @@ public abstract class Relation {
     /**
      * Returns the column with the given columnName, ignoring case
      */
-    public Column column(String columnName) {
-        for (Column column : columns()) {
+    public Column<?> column(String columnName) {
+        for (Column<?> column : columns()) {
             String name = column.name().trim();
             if (name.equalsIgnoreCase(columnName)) {
                 return column;
@@ -103,7 +121,7 @@ public abstract class Relation {
      * @param columnIndex an integer at least 0 and less than number of columns in the relation
      * @return the column at the given index
      */
-    public abstract Column column(int columnIndex);
+    public abstract Column<?> column(int columnIndex);
 
     /**
      * Returns the number of columns in the relation
@@ -118,17 +136,45 @@ public abstract class Relation {
     /**
      * Returns a list of all the columns in the relation
      */
-    public abstract List<Column> columns();
+    public abstract List<Column<?>> columns();
+
+    /**
+     * Returns the columns whose names are given in the input array
+     */
+    public List<Column<?>> columns(String... columnName) {
+        List<Column<?>> cols = new ArrayList<>(columnName.length);
+        for (String aColumnName : columnName) {
+            cols.add(column(aColumnName));
+        }
+        return cols;
+    }
+
+    /**
+     * Returns the columns whose indices are given in the input array
+     */
+    public List<Column<?>> columns(int... columnIndices) {
+        List<Column<?>> cols = new ArrayList<>(columnIndices.length);
+        for (int i : columnIndices) {
+            cols.add(column(i));
+        }
+        return cols;
+    }
 
     /**
      * Returns the index of the given column
      */
-    public abstract int columnIndex(Column col);
+    public abstract int columnIndex(Column<?> col);
 
     /**
-     * Returns a String representing the value found at column index c and row index r
+     * Returns the value at the given row and column indexes
+     *
+     * @param r the row index, 0 based
+     * @param c the column index, 0 based
      */
-    public abstract String get(int r, int c);
+    public Object get(int r, int c) {
+        Column<?> column = column(c);
+        return column.get(r);
+    }
 
     /**
      * Returns the name of this relation
@@ -169,18 +215,22 @@ public abstract class Relation {
 
     @Override
     public String toString() {
-      return "Table " + name() + ": Size = " + rowCount() + " x " + columnCount();
+        return print();
+    }
+
+    public String printAll() {
+        return print(rowCount());
     }
 
     public String print(int rowLimit) {
-      ByteArrayOutputStream baos = new ByteArrayOutputStream();
-      DataFramePrinter printer = new DataFramePrinter(rowLimit, baos);
-      printer.print(this);
-      return new String(baos.toByteArray());
+        ByteArrayOutputStream baos = new ByteArrayOutputStream();
+        DataFramePrinter printer = new DataFramePrinter(rowLimit, baos);
+        printer.print(this);
+        return new String(baos.toByteArray());
     }
 
     public String print() {
-      return print(20);
+        return print(20);
     }
 
     public Table structure() {
@@ -194,20 +244,20 @@ public abstract class Relation {
                 .append(" variables (cols)");
 
         Table structure = Table.create(nameBuilder.toString());
-        structure.addColumn(new IntColumn("Index"));
-        structure.addColumn(new CategoryColumn("Column Name"));
-        structure.addColumn(new CategoryColumn("Type"));
-        structure.addColumn(new IntColumn("Unique Values"));
-        structure.addColumn(new CategoryColumn("First"));
-        structure.addColumn(new CategoryColumn("Last"));
+        structure.addColumns(DoubleColumn.create("Index"));
+        structure.addColumns(StringColumn.create("Column Name"));
+        structure.addColumns(StringColumn.create("Type"));
+        structure.addColumns(DoubleColumn.create("Unique Values"));
+        structure.addColumns(StringColumn.create("First"));
+        structure.addColumns(StringColumn.create("Last"));
 
-        for (Column column : columns()) {
+        for (Column<?> column : columns()) {
             structure.intColumn("Index").append(columnIndex(column));
-            structure.categoryColumn("Column Name").append(column.name());
-            structure.categoryColumn("Type").append(column.type().name());
+            structure.stringColumn("Column Name").append(column.name());
+            structure.stringColumn("Type").append(column.type().name());
             structure.intColumn("Unique Values").append(column.countUnique());
-            structure.categoryColumn("First").append(column.first());
-            structure.categoryColumn("Last").append(column.getString(column.size() - 1));
+            structure.stringColumn("First").append(column.getString(0));
+            structure.stringColumn("Last").append(column.getString(column.size() - 1));
         }
         return structure;
     }
@@ -218,7 +268,7 @@ public abstract class Relation {
                 .append("Table summary for: ")
                 .append(name())
                 .append("\n");
-        for (Column column : columns()) {
+        for (Column<?> column : columns()) {
             builder.append(column.summary().print());
             builder.append("\n");
         }
@@ -234,74 +284,146 @@ public abstract class Relation {
         return (BooleanColumn) column(columnName);
     }
 
-    public NumericColumn numericColumn(int columnIndex) {
-        Column c = column(columnIndex);
-        if (c.type() == ColumnType.CATEGORY) {
-            CategoryColumn categoryColumn = (CategoryColumn) c;
-            return categoryColumn.asIntColumn();
+    /**
+     * Returns the NumberColumn at the given index.
+     * If the index points to a String or a boolean column, a new NumberColumn is created and returned
+     * TODO(lwhite):Consider separating the indexed access and the column type mods, which must be for ML functions (in smile or elsewhere)
+     * @param columnIndex The 0-based index of a column in the table
+     * @return A number column
+     * @throws ClassCastException if the cast to NumberColumn fails
+     */
+    public NumberColumn<?> numberColumn(int columnIndex) {
+        Column<?> c = column(columnIndex);
+        if (c.type() == ColumnType.STRING) {
+            StringColumn stringColumn = (StringColumn) c;
+            return stringColumn.asNumberColumn();
         } else if (c.type() == ColumnType.BOOLEAN) {
             BooleanColumn booleanColumn = (BooleanColumn) c;
-            return booleanColumn.asIntColumn();
+            return booleanColumn.asNumberColumn();
         }
-        return (NumericColumn) column(columnIndex);
+        return (NumberColumn<?>) column(columnIndex);
     }
 
-    public NumericColumn numericColumn(String columnName) {
-        Column c = column(columnName);
-        if (c.type() == ColumnType.CATEGORY) {
-            CategoryColumn categoryColumn = (CategoryColumn) c;
-            return categoryColumn.asIntColumn();
-        } else if (c.type() == ColumnType.BOOLEAN) {
-            BooleanColumn booleanColumn = (BooleanColumn) c;
-            return booleanColumn.asIntColumn();
-        }
-        return (NumericColumn) column(columnName);
+    public NumberColumn<?> numberColumn(String columnName) {
+        return numberColumn(columnIndex(columnName));
     }
 
-    /**
-     * Returns the column with the given name cast to a NumericColumn
-     * <p>
-     * Shorthand for numericColumn()
-     */
-    public NumericColumn nCol(String columnName) {
-        return numericColumn(columnName);
-    }
-
-    /**
-     * Returns the column with the given name cast to a NumericColumn
-     * <p>
-     * Shorthand for numericColumn()
-     */
-    public NumericColumn nCol(int columnIndex) {
-        return numericColumn(columnIndex);
-    }
-
-    public FloatColumn floatColumn(int columnIndex) {
-        return (FloatColumn) column(columnIndex);
-    }
-
-    public FloatColumn floatColumn(String columnName) {
-        return (FloatColumn) column(columnName);
+    public DoubleColumn doubleColumn(String columnName) {
+        return doubleColumn(columnIndex(columnName));
     }
 
     public DoubleColumn doubleColumn(int columnIndex) {
         return (DoubleColumn) column(columnIndex);
     }
 
-    public DoubleColumn doubleColumn(String columnName) {
-        return (DoubleColumn) column(columnName);
+    public StringColumn[] stringColumns() {
+        return columns().stream().filter(e->e.type() == ColumnType.STRING).toArray(StringColumn[]::new);
+    }
+
+    public NumericColumn<?>[] numberColumns() {
+        return columns().stream().filter(e->e instanceof NumericColumn<?>).toArray(NumericColumn[]::new);
+    }
+
+    /**
+     * Returns all the NumericColumns in the relation
+     */
+    public List<NumericColumn<?>> numericColumns() {
+        List<NumericColumn<?>> cols = new ArrayList<>();
+        for (NumericColumn<?> c : numberColumns()) {
+            cols.add(c);
+        }
+        return cols;
+    }
+
+    /**
+     * Returns all the NumericColumns in the relation
+     */
+    public List<NumericColumn<?>> numericColumns(int... columnIndices) {
+        List<NumericColumn<?>> cols = new ArrayList<>();
+        for (int i : columnIndices) {
+            cols.add(numberColumn(i));
+        }
+
+        return cols;
+    }
+
+    /**
+     * Returns all the NumericColumns in the relation
+     */
+    public List<NumericColumn<?>> numericColumns(String ... columnNames) {
+        List<NumericColumn<?>> cols = new ArrayList<>();
+        for (String name : columnNames) {
+            cols.add(numberColumn(name));
+        }
+
+        return cols;
+    }
+
+
+    public BooleanColumn[] booleanColumns() {
+        return columns().stream().filter(e->e.type() == ColumnType.BOOLEAN).toArray(BooleanColumn[]::new);
+    }
+
+    public DateColumn[] dateColumns() {
+        return columns().stream().filter(e->e.type() == ColumnType.LOCAL_DATE).toArray(DateColumn[]::new);
+    }
+
+    public DateTimeColumn[] dateTimeColumns() {
+        return columns().stream().filter(e->e.type() == ColumnType.LOCAL_DATE_TIME).toArray(DateTimeColumn[]::new);
+    }
+
+    public TimeColumn[] timeColumns() {
+        return columns().stream().filter(e->e.type() == ColumnType.LOCAL_TIME).toArray(TimeColumn[]::new);
+    }
+
+    public CategoricalColumn<?> categoricalColumn(String columnName) {
+        return (CategoricalColumn<?>) column(columnName);
+    }
+
+    public CategoricalColumn<?> categoricalColumn(int columnNumber) {
+        return (CategoricalColumn<?>) column(columnNumber);
+    }
+
+    /**
+     * Returns the columns whose names are given in the input array
+     */
+    public List<CategoricalColumn<?>> categoricalColumns(String... columnName) {
+        List<CategoricalColumn<?>> cols = new ArrayList<>(columnName.length);
+        for (String aColumnName : columnName) {
+            cols.add(categoricalColumn(aColumnName));
+        }
+        return cols;
+    }
+
+    
+    /**
+     * Returns the column with the given name cast to a NumberColumn
+     * <p>
+     * Shorthand for numberColumn()
+     */
+    public NumberColumn<?> nCol(String columnName) {
+        return numberColumn(columnName);
+    }
+
+    /**
+     * Returns the column with the given name cast to a NumberColumn
+     * <p>
+     * Shorthand for numberColumn()
+     */
+    public NumberColumn<?> nCol(int columnIndex) {
+        return numberColumn(columnIndex);
     }
 
     public IntColumn intColumn(String columnName) {
-        return (IntColumn) column(columnName);
+        return intColumn(columnIndex(columnName));
     }
 
     public IntColumn intColumn(int columnIndex) {
         return (IntColumn) column(columnIndex);
     }
-
+    
     public ShortColumn shortColumn(String columnName) {
-        return (ShortColumn) column(columnName);
+        return shortColumn(columnIndex(columnName));
     }
 
     public ShortColumn shortColumn(int columnIndex) {
@@ -309,11 +431,19 @@ public abstract class Relation {
     }
 
     public LongColumn longColumn(String columnName) {
-        return (LongColumn) column(columnName);
+        return longColumn(columnIndex(columnName));
     }
 
     public LongColumn longColumn(int columnIndex) {
         return (LongColumn) column(columnIndex);
+    }
+    
+    public FloatColumn floatColumn(String columnName) {
+        return floatColumn(columnIndex(columnName));
+    }
+
+    public FloatColumn floatColumn(int columnIndex) {
+        return (FloatColumn) column(columnIndex);
     }
 
     public DateColumn dateColumn(int columnIndex) {
@@ -332,12 +462,20 @@ public abstract class Relation {
         return (TimeColumn) column(columnIndex);
     }
 
-    public CategoryColumn categoryColumn(String columnName) {
-        return (CategoryColumn) column(columnName);
+    public StringColumn stringColumn(String columnName) {
+        return (StringColumn) column(columnName);
     }
 
-    public CategoryColumn categoryColumn(int columnIndex) {
-        return (CategoryColumn) column(columnIndex);
+    public StringColumn stringColumn(int columnIndex) {
+        return (StringColumn) column(columnIndex);
+    }
+
+    public TextColumn textColumn(String columnName) {
+        return (TextColumn) column(columnName);
+    }
+
+    public TextColumn textColumn(int columnIndex) {
+        return (TextColumn) column(columnIndex);
     }
 
     public DateTimeColumn dateTimeColumn(int columnIndex) {
@@ -348,19 +486,51 @@ public abstract class Relation {
         return (DateTimeColumn) column(columnName);
     }
 
-    public double[][] asColumnMatrix() {
-      return columns().stream().map(col -> col.asDoubleArray()).toArray(size -> new double[size][]);
+    public TableConverter as() {
+        return new TableConverter(this);
     }
 
-    public double[][] asMatrix() {
-        double[][] columnMatrix = asColumnMatrix();
-        double[][] result = new double[columnMatrix[0].length][columnMatrix.length];
-        for (int i = 0; i < columnMatrix.length; i++) {
-            for (int j = 0; j < columnMatrix[0].length; j++) {
-                result[j][i] = columnMatrix[i][j];
-            }
-        }
-        return result;
+    public SmileConverter smile() {
+        return new SmileConverter(this);
     }
 
+    /**
+     * Returns a string representation of the value at the given row and column indexes
+     *
+     * @param r the row index, 0 based
+     * @param c the column index, 0 based
+     */
+    public String getUnformatted(int r, int c) {
+        Column<?> column = column(c);
+        return column.getUnformattedString(r);
+    }
+
+    /**
+     * Returns a string representation of the value at the given row and column indexes
+     *
+     * @param r          the row index, 0 based
+     * @param columnName the name of the column to be returned
+     *                   <p>
+     *                   // TODO: performance would be enhanced if columns could be referenced via a hashTable
+     */
+    public String getString(int r, String columnName) {
+        return getString(r, columnIndex(columnName));
+    }
+
+    /**
+     * Returns a string representation of the value at the given row and column indexes
+     *
+     * @param r          the row index, 0 based
+     * @param columnIndex the index of the column to be returned
+     *                   <p>
+     *                   // TODO: performance would be enhanced if columns could be referenced via a hashTable
+     */
+    public String getString(int r, int columnIndex) {
+        Column<?> column = column(columnIndex);
+        return column.getString(r);
+    }
+
+    public boolean containsColumn(Column<?> column) {
+        return columns().contains(column);
+    }
 }

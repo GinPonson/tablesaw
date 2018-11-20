@@ -1,184 +1,472 @@
 # Getting started with Tablesaw
-Tablesaw is a high-performance, in-memory dataframe, plus tools for data manipulation, and a column-oriented storage format.
-In Java. What follows is a brief introduction to help you do your first project.
+
+Java is a great language, but it wasn't designed for data analysis. Tablesaw makes it easy to do data analysis in Java. 
+
+Once you're up and running, this tutorial will tell you what you need to know to use Tablesaw.
 
 ## Setup
 
-Tablesaw is available from Maven Central.
+First, Tableasaw requires Java 8 or newer. 
 
+Second, you need to add the dependency to your pom file. It's available on Maven Central.
+
+````
 <dependency>
     <groupId>tech.tablesaw</groupId>
     <artifactId>tablesaw-core</artifactId>
-    <version>0.11.6</version>
+    <version>LATEST</version>
 </dependency>
+````
 
-It requires Java 8 or newer.
+That's it for setup. On to design
 
-## Tornado Warning
+## Tables and Columns 
 
-We’ll use a tornado data set from NOAA. Here’s what we’ll cover:
+As you would expect, Tablesaw is all about tables, and tables are made of columns. We'll start with columns.
 
-* Read and writing CSV files
-* Viewing table metadata
-* Adding and removing columns
-* Printing the first few rows for a peak at the data
-* Sorting
-* Running descriptive stats (mean, min, max, etc.)
-* Performing mapping operations over columns
-* Filtering rows
-* Computing cross-tabs
-* Storing tables in Tablesaw’s compressed columnar storage format
+### Columns
 
-All the data is in the projects data folder. The code is taken from the TornadoExample test class.
+A column is a named, one-dimensional collection of data. It may or may not be part of a table. All data in a column must be of the same type. 
 
-### Read a CSV file
+Tablesaw supports columns for Strings, doubles, booleans, LocalDates, LocalTimes, and LocalDateTimes. The date and time columns are comparable with the java.time classes introduced in Java 8.
 
-Here we read a csv file of tornado data. Tablesaw infers the column types by sampling the data.
+To create a column you can use one of its static *create()* methods:
 
-  Table tornadoes = Table.createFromCSV("data/tornadoes_1950-2014.csv");
+```java
+double[] numbers = {1, 2, 3, 4};
+NumberColumn nc = NumberColumn.create("Test", numbers);
+out(nc.print());
+```
+which produces: [^1]
+```java
+Column: Test
+1.0
+2.0
+3.0
+4.0
+```
+Each column has an associated 0-based index. To get an individual value call *get()* with the index. 
+```java
+nc.get(2);
+```
+which returns 3.0.
 
-### Viewing table metadata
+#### Array Operations
 
-Often, the best way to start is to print the column names for reference:
+Tablesaw makes columns easy to work with. Operations that work on numbers in standard Java, for example, often work on *columns* of numbers in Tablesaw. To multiply every value in a column by 4, we use the *multiply()* method, which returns a new column like the original.
 
-  tornadoes.columnNames();
+```java
+NumberColumn nc2 = nc.multiply(4);
+```
+producing: [^1] 
 
-which produces:
+```java
+Column: Test * 4.0
+4.0
+8.0
+12.0
+16.0
+```
+As you can see, the values are 4x the values in the original. The new column's name is made by combining the original "Test" and the operation (* 4). You can change it if you like using *setName(aString)*.
 
-  Date, Time, State, State No, Scale, Injuries, Fatalities, Start Lat, Start Lon, Length, Width]
+There are so many columnar operations in Tablesaw that, as a general rule, if you find yourself writing a for loop to process a column or table, you may be missing something. 
 
-The shape() method displays the row and column counts:
+#### Objects and Primitives
 
-    tornadoes.shape();
-    >> 59945 rows X 10 cols
+Many Java programs and programmers work exclusively with Objects, rather than primitives. In Tablesaw, we use primitives whenever possible because they use  *much* less memory than their boxed alternatives.  A Byte object, for example, uses as much memory as a primitive double, even though bytes have a range of only 256 values. 
 
-The structure() method shows the index, name and type of each column
+There is a price for this frugality. When you work with primitives, you forgo some common java capabilities, like the use of standard Java 8 predicates. While Java thoughtfully provides some specialized predicate interfaces (e.g. *IntPredicate*), they don't provide any primitive *BiPredicate* implementations, nor do their primitive interfaces cover all primitive types. Without an IntBiPredicate, we can't implement operations like a < b. So we were left to roll our own. You can find them in the package *tech.tablesaw.filtering.predicates*. They work like the standard objects. 
 
-    tornadoes.structure();
+This just covers the most basic information about columns. You can find more in the section on [Columns](https://jtablesaw.github.io/tablesaw/userguide/columns), or in the Javadocs for the [api package](http://www.javadoc.io/page/tech.tablesaw/tablesaw-core/latest/tech/tablesaw/api/package-summary.html) and the [columns package](http://www.javadoc.io/page/tech.tablesaw/tablesaw-core/latest/tech/tablesaw/columns/package-summary.html).
 
-    >> Structure of data/tornadoes_1950-2014.csv
-        Index Column Names Column Type 
-        0     Date         LOCAL_DATE  
-        1     Time         LOCAL_TIME  
-        2     State        CATEGORY    
-        3     State No     INTEGER     
-        4     Scale        INTEGER     
-        5     Injuries     INTEGER     
-        6     Fatalities   INTEGER     
-        7     Start Lat    FLOAT       
-        8     Start Lon    FLOAT       
-        9     Length       FLOAT       
-        10    Width        FLOAT       
-Like many Tablesaw methods, structure() returns a table; You can then call print() to produce a string representation for display, or perform any other table operations on it, like the following, which removes all columns whose type isn’t INTEGER:
+### Selections
 
-    tornadoes.structure().selectWhere(column("Column Type").isEqualTo("INTEGER"));
-    >> Structure of data/tornadoes_1950-2014.csv
-        Index Column Name Column Type 
-        3     State No    INTEGER     
-        4     Scale       INTEGER     
-        5     Injuries    INTEGER     
-        6     Fatalities  INTEGER     
+Before going on to tables, we should talk about *selections*. *Selections* are used to filter both tables and columns. Often they work behind the scenes, but you can use them directly. For example, consider our NumberColumn containing the values {1, 2, 3, 4}. You can filter that column by sending it a message. For example: 
 
-Of course, that also returned a table. We’ll cover selecting rows in more detail later.
+```java
+nc.isLessThan(3);
+```
 
-### Previewing data
+This operation returns a *Selection*. Logically, it's a bitmap of the same size as the original column. The method above, effectively, returns 1, 1, 0, 0, since the first two values in the column are less than three, and the last two are not. 
 
-The first(n) method returns the first n rows.
+What you probably wanted was not a Selection object, but a new NumberColumn that contains only the values that passed the filter. To get this, you use the *where(aSelection)* method to apply the selection:
 
-table.first(3);
->>
-Date       Time     State Scale Injuries Fatalities Start Lat Start Lon Length Width 
-1950-01-03 11:00:00 MO    3     3        0          38.77     -90.22    9.5    150.0 
-1950-01-03 11:00:00 MO    3     3        0          38.77     -90.22    6.2    150.0 
-1950-01-03 11:10:00 IL    3     0        0          38.82     -90.12    3.3    100.0 
-Mapping operations
+```java
+NumberColumn filtered = nc.where(nc.isLessThan(3));
+> Column: Test < 3.0
+1.0
+2.0
+```
 
-Mapping operations in Tablesaw take one or more columns as inputs and produce a new column as output. We can map arbitrary expressions onto the table, but many common operations are built in. You can, for example, calculate the difference in days, weeks, or years between the values in two date columns. The method below extracts the Month name from the date column into a new column.
+Doing this in two steps provides many benefits. For one, it lets us combine filters. For example: 
 
-CategoryColumn month = tornadoes.dateColumn("Date").month();
-Once you have a new column, you can add it to a table:
+```java
+NumberColumn filtered = nc.where(nc.isLessThan(3).and(nc.isOdd());
+```
 
-tornadoes.addColumn(month);
-You can also remove columns from tables to save memory or reduce clutter:
+If the methods returned columns directly, they couldn't be combined this way.  It also lets us use the same method for filtering both tables and columns, as you'll see below.
 
-tornadoes.removeColumn("State No);
-Sorting by column
+##### Selecting by index
 
-Now lets sort the table in reverse order by the id column. The negative sign before the name indicates a descending sort.
+These examples show how to select using predicates. You can also use a selection to retrieve the value at a specific index, or indexes. All of the following are supported:
 
-tornadoes.sortOn("-Fatalities");
-Descriptive statistics
+```java
+nc.where(Selection.with(0, 2));  	// returns 2 rows with the given indexes
+nc.where(Selection.selectNRowsAtRandom(2)); // returns 2 randomly selected rows
+nc.where(Selection.withRange(1, 3));		// returns rows 1-3 inclusive
+nc.where(Selection.withoutRange(1, 3));		// returns row 0
+```
 
-Descriptive statistics are calculated using the summary() method:
+If you have several columns of the same length as you would in a table of data, you can make a selection with one column and use it to filter another:
 
-table.column("Fatalities").summary().print();
-This outputs:
+```java
+NumberColumn result = firstColumn.where(someOtherColumn.startsWith("foo"));
+```
 
-    Measure  Value     
-    n        1590.0    
-    Missing  0.0       
-    Mean     4.2779875 
-    Min      1.0       
-    Max      158.0     
-    Range    157.0     
-    Std. Dev 9.573451
-Filtering Rows
+> **Key point:** Note the methods *startsWith(aString)*, *isLessThan(aNumber)*, and *isOdd()*. These were predefined for your use. There are many such methods that can be used in building queries. For StringColumn, they're defined in the [tech.tablesaw.columns.strings.StringFilters interface](http://www.javadoc.io/page/tech.tablesaw/tablesaw-core/latest/tech/tablesaw/columns/strings/StringFilters.html). It also includes *endsWith()*, *isEmpty()*, *isAlpha()*, *containsString()*[^2], etc. Each column has a similar set of filter operations. They can all be found in the filter interfaces located in sub-folders of tech.tablesaw.columns (e.g. tech.tablesaw.columns.dates.DateFilters). 
 
-To filter rows you can use arbitrary logic, but it’s easier to use the built-in filter classes as shown below:
+#### Map functions
 
-tornadoes.selectWhere(column("Fatalities").isGreaterThan(0));
+Map functions are methods defined on columns that return other new Columns as their result. You've already seen one: The column *multiply(aNumber)* method above is a map function with a scalar argument. To multiple the values in two columns, use *multiply(aNumberColumn)*:
 
-tornadoes.selectWhere(column("Date").isInApril());
+```java
+NumberColumn newColumn = nc1.multiply(nc2);
+```
 
-tornadoes.selectWhere(either
-           (column("Width").isGreaterThan(300)),   // 300 yards
-           (column("Length").isGreaterThan(10)));  // 10 miles
+Each value in column nc1 is multiplied by the corresponding value in nc2, rather than by a scalar value in the earlier example.
 
-tornadoes.select("State", "Date").where(column("Date").isInQ2());
-The last example above returns a table containing only the columns named in select() parameters.
+There are many map functions built-in for the various column types. Here are some examples for StringColumn:
 
-Performing totals and sub-totals
+```java
+StringColumn s;
+s = aStringColumn.upperCase();
+s = s.replaceFirst("foo", "bar")
+s = s.substring(3, 10);
+s = s.padEnd(4, 'x');				// put 4 x chars at the end of each string
 
-Column metrics can be calculated using methods like sum(), product(), mean(), max(), etc.
+// this returns the common prefix of each row in two columns
+y = s.commonPrefix(anotherStringColumn);
 
-You can apply those methods to a table, calculating results on one column, grouped by the values in another.
+// this returns a measure of the similarity (levenshtein distance) between two columns
+nc = s.distance(anotherStringColumn);
+```
+As you can see, for many String methods that return a new String. StringColumn provides an equivilent map method that returns a new StringColumn. It also includes other helpful methods found in Guava's String library and in the Apache Commons String library.
 
-Table injuriesByScale = tornadoes.median("Injuries").by("Scale");
-injuriesByScale.setName("Median injuries by Tornado Scale");
-This produces the following table, in which Group represents the Tornado Scale and Median the median injures for that group:
+> **Key point:** Every column type has a set of map operations like *multiply(aNumber)*. For StringColumn, these methods are defined in the [*tech.tablesaw.columns.strings.StringMapFunctions*](http://www.javadoc.io/page/tech.tablesaw/tablesaw-core/latest/tech/tablesaw/columns/strings/StringFilters.html) interface. It includes many methods beyond those shown above. Methods for all column types can all be found in their filter interfaces located in the sub-folders of tech.tablesaw.columns (e.g. [*tech.tablesaw.columns.dates.DateMapFunctions*](http://www.javadoc.io/page/tech.tablesaw/tablesaw-core/latest/tech/tablesaw/columns/strings/StringFilters.html), which provides date methods like *plusDays(anInt)*, *year()*, and *month()*).  
+>
 
-Median injuries by Tornado Scale
-Group Median 
--9    0.0    
-0     0.0    
-1     0.0    
-2     0.0    
-3     1.0    
-4     12.0   
-5     107.0  
-Cross Tabs
+#### Reduce (aggregate) functions: Summarizing a column 
 
-Tablesaw lets you easily produce two-dimensional cross-tabulations (“cross tabs”) of counts and proportions with row and column subtotals. Here’s a count example where we look at the interaction of tornado severity and US state:
+Sometimes you want to derive a singly value that summarizes in some sense the data in a column. Aggregate functions do just that. Each such function scan all the values in a column and returns a single scalar value as a result.  All columns support some aggregate functions: *min*() and *max*(), for example, plus *count()*, *countUnique()*, and *countMissing()*. Some also support type-specific functions. BooleanColumn, for example, supports *all()*, which returns *true* if all of the values in the column are *true*. The functions *any()*, and *none()*,  return true if any or none the values in the column are true, respectively. The functions *countTrue()*, and *countFalse()* are also available.
 
-CrossTab.xCount(t, t.categoryColumn("State"), t.shortColumn("Scale"));
-Crosstab Counts: State x Scale
-      -9 0     1     2    3    4   5  total 
-AL    0  623   769   424  141  37  11 2005  
-AR    0  485   666   419  161  28  0  1759  
-AZ    0  145   70    15   2    0   0  232   
-... snipped 
-WI    0  447   517   267  55   18  2  1306  
-WV    0  37    67    22   7    0   0  133   
-WY    0  405   178   51   11   0   0  645   
-Total 44 27253 20009 9067 2580 670 68 59691
-Write the new CSV file to disk
+NumberColumn has many more aggregate functions. For example, to calculate the standard deviation of the values in a column, you would call:
 
-tornadoes.write().csv("data/rev_tornadoes_1950-2014.csv");
-Read and write data using Tablesaw’s “.saw” format
+```java
+double stdDev = nc.standardDeviation();	
+```
 
-Once you’ve imported data you can use Tablesaw’s own disk format to save it. In .saw format, reads and writes are an order of magnitude faster than optimized CSV operations.
+> **Key point:** NumberColumn supports many aggregation functions, including many of the most useful. Among those available are *sum*, *count*, *mean*, *median*, *percentile(n)*, *range*, *variance*, *sumOfLogs*, and so on. These are defined in the [NumberColumn](http://www.javadoc.io/page/tech.tablesaw/tablesaw-core/latest/tech/tablesaw/api/NumberColumn.html) class. 
+>
 
-String dbName = tornadoes.save("/tmp/tablesaw/testdata");
-Table tornadoes = Table.readTable(dbName);
-And that’s it for the introduction. Stay tuned for more info about advanced features.
+When we discuss tables below, we'll show how to calculate sub-totals in one or more numeric columns by the values in one or more grouping columns.
+
+### Tables
+A table is a named collection of columns. All columns in the table must have the same number of elements, although missing values are allowed. A table can contain any combination of column types.
+
+#### Creating Tables
+
+You can create a table in code. Here we create a table and add two new columns to it:
+
+```java
+String[] animals = {"bear", "cat", "giraffe"};
+double[] cuteness = {90.1, 84.3, 99.7};
+
+Table cuteAnimals = Table.create("Cute Animals)
+	.addColumns(
+		StringColumn.create("Animal types", animals),
+		NumberColumn.create("rating", cuteness));
+```
+
+#### Importing data
+
+More frequently, you will load a table from a CSV or other delimited text file. 
+
+```java
+Table x = Table.read().csv("testing.csv");
+```
+
+Tablesaw does a pretty good job at guessing the column types for many data sets, but you can specify them    if it guesses wrong, or to improve performance. Numerous other options are available, such as specifying whether or not there's a header, using a non-standard delimiter, supplying a custom missing value indicator, and so on. 
+
+***Note:*** Getting data loaded is sometimes the hardest part of data analysis. Advanced options for loading data are described in the documentation on [Importing Data](https://jtablesaw.github.io/tablesaw/userguide/importing_data). That section also shows how you can read data from a database, a stream, or an HTML table. The stream interfaces lets you read data from a Web site or an S3 bucket.  
+
+#### Exploring Tables
+
+Because Tablesaw excels at manipulating tables, we use them whenever we can.  When you ask tablesaw for the structure of a table, the answer comes back in the form of another table where one column contains the column names, etc.  The structure() method is one of several that help you to know a new data set. Here are some examples.
+
+```java
+Table structure = bushTable.structure();
+
+>	          Structure of bush.csv          
+	 Index  |  Column Name  |  Column Type  |
+	-----------------------------------------
+	     0  |         date  |   LOCAL_DATE  |
+	     1  |     approval  |       DOUBLE  |
+	     2  |          who  |       STRING  |
+
+String shape = bushTable.shape();
+>	323 rows X 3 cols
+
+Table head = bushTable.first(3);
+>	             bush.csv              
+	    date     |  approval  |  who  |
+	-----------------------------------
+	 2004-02-04  |      53.0  |  fox  |
+	 2004-01-21  |      53.0  |  fox  |
+	 2004-01-07  |      58.0  |  fox  |
+                     
+Table tail = myTable.last(3);
+> etc.
+```
+
+Table's *toString()* method returns a String representation like those shown above. It returns a limited number of rows by default, but you can also use *table.printAll()*, or *table.print(n)* to get the output you want.
+
+Of course, this is just the beginning of exploratory data analysis. You can also use numeric and visual tools to explore your data. These facilities are described in the documentation on statistics and [plotting](https://jtablesaw.github.io/tablesaw/userguide/jsplots), respectively.
+
+#### Working with a table's columns
+
+Often you'll work with specific columns in a table. Here are some useful methods:
+
+```java
+table.columnNames();  			// returns all column names
+List<Column> = table.columns(); // returns all the columns in the table
+
+// removing columns
+table.removeColumns("Foo");			// keep everything but "foo"
+table.retainColumns("Foo", "Bar");  // only keep foo and bar
+table.removeColumnsWithMissingValues();
+
+// adding columns
+table.addColumns(column1, column2, column3);
+```
+
+In tablesaw, column names are case-insensitive. You get the same column if you ask for any of these:
+
+```java
+t.column("FOO");
+t.column("foo");
+t.column("foO");
+```
+
+remembering column names is enough of a burden without having to remember exactly which characters are capitalized. 
+
+##### Getting specific column types from a table
+
+Columns can be retrieved from tables by name or position. The simplest method *column()* returns a object of type Column. This may be good enough, but often you want to get a column of a specific type. For example, you would need to cast the value returned to a NumberColumn to use its values in a scatter plot. 
+
+```java
+Column nc = table.column("Foo"); // returns the column named 'Foo' if it's in the table.
+// or 
+Column nc = table.column(0);  // returns the first column
+
+// To work with a NumberColumn you can cast the return value
+NumberColumn nc = (NumberColumn) table.column(0); 
+// Now you can do some numeric stuff with the column nc
+```
+
+Table also supports methods that return columns of the desired type directly:
+
+```Java
+NumberColumn nc = table.numberColumn(0); 
+DateColumn dc = table.dateColumn("start date");
+```
+
+If you want all the columns of specific type, you can get those as well. The method columnsOfType(aColumnType) returns them as a List, but you still have to cast the results. For example, to format all columns as ints when you print them, you could do this. 
+
+```Java
+table.columnOfType(ColumnType.DOUBLE).forEach(x ->                                               		((NumberColumn)x).setPrintFormatter(NumberColumnFormatter.ints()));
+```
+
+> **Key point:** You may want a specific kind of column to work with. Either use the standard *column()* method and cast the result or use one of the type specific methods (like *numberColumn()*) that handle the cast for you. There are also methods or getting columns of a specific type. 
+
+####  Working with rows
+
+As with columns, many options exist for working with tables in row-wise fashion. Here are some useful ones:
+
+```java
+Table result = table.dropDuplicateRows();
+result = table.dropRowsWithMissingValues();
+
+// drop rows using Selections
+result = table.dropWhere(table.numberColumn(0).isLessThan(100));
+
+// add rows
+table.addRow(43, sourceTable);	// adds row 43 from sourceTable to the receiver
+
+// sampling
+table.sample(200);				// select 200 rows at random from table 
+```
+
+You can also perform arbitrary operations on each row in the table.  One way is to just iterate over the rows and work with each column individually, using Row::rowNumber() as the index:
+
+```java
+for (Row row : table) {
+    System.out.println(column1.get(row.rowNumber())); // etc.
+}
+```
+
+There are better ways, however. Another approach lets you skip the iteration and just provide a Consumer for each row.
+
+```java
+// Create a consumer as an object or lambda (show below)
+Consumer<Row> doable = row -> {
+    if (row.getRowNumber() < 5) {
+        System.out.println("On "
+                           + row.getDate("date")
+                           + ": "
+                           + row.getDouble("approval"));
+    }
+};
+// apply the lambda
+table.doWithRows(doable);
+```
+
+If you need to process more than one row at a time, there are several methods to help. 
+
+```java
+// work with a sliding window of rows
+// for example 0, 1, and 2, then 1, 2, and 3. etc.
+table.rollWithRows(consumer, 3);		
+
+// work with a shifting window of rows
+// for example rows 0 through 4, then 5 through 9, etc.
+table.stepWithRows(consumer, 5);		
+
+table.doWithRowPairs(Pairs)	// easy syntax for working with each pair of rows
+```
+
+See [Rows](https://jtablesaw.github.io/tablesaw/userguide/rows) for more information and other options. 
+
+#### Sorting
+
+To sort a table, you can just use the sort() function and give it a column name (or two):
+
+```java
+Table sorted = table.sort("foo", "bar", "bam");
+```
+
+The above code sorts in ascending order by default.  Other options are shown below:
+
+```java
+sorted = table.sortDescending("foo");
+sorted = table.sortAscending("bar"); 	// just like sort(), but makes order explicit.
+
+/* sort on foo ascending, then bar descending. Note the minus sign preceding the name of column bar. */
+sorted = table.sort("foo", "-bar");		 
+```
+
+See [Sorting](https://jtablesaw.github.io/tablesaw/userguide/sorting) for more information and other options. 
+
+#### Filtering tables with selections
+
+Tables also use selections to perform filtering. The basic approach is similar.
+
+```java
+Table t = Table.create("test").addColumns(nc1, nc2);
+Table result = t.where(nc1.isGreaterThan(4));
+```
+
+Note that the *where()* method for tables also takes a selection as its argument. The result is a new table like the original, except that it only contains the rows where the value in the *nc1* column is > 4.
+
+##### Combining filters into complex queries
+
+Query filters can be combined using the logical operations *and*, *or*, and *not*. These are implemented on the table class. The *not()* method takes a single selection as its argument, while *and()* and *or()* take a comma separated list of them. The rather contrived code below shows all three logical operators combined.
+
+```java
+Table result = t.where(
+	t.and(nc1.isGreaterThan(4),
+         t.or(t.not(nc2.isLessThanOrEqualTo(5)),
+         		nc2.isEven()));
+```
+
+##### Selecting columns in a query statement 
+
+If you don't need all the columns from the filtered table in the result, you can limit columns as well as rows, using *select().where()*.
+
+```java
+Table result = t.select(nc1).where(nc2.isEven());
+```
+
+ The *select()* method takes a column or array of columns as arguments. 
+
+#### Summarizing tables
+
+##### Groups
+
+Tables can be "sliced" for calculating subtotals. The method *splitOn(CategoricalColumns)* and *splitOn(CategoricalColumnNames)* both return an object called TableSliceGroup. A TableSlice is, effectively, a window into a backing table. TableSliceGroup is a collection of these windows, each of which looks and feels like its own table. 
+
+For the most part, tables are sliced according to the value of a column or columns. For example, if you have a string column called "province", and another called "status," there will be a slice for each combination of provence and status in the table. 
+
+The usual way to calculate values is  to use the *summarize()* method: 
+
+```java
+Table summary = table.summarize("sales", mean, sum, min, max).by("province", "status");
+```
+
+It's important to recognize, that the column need not exist when summarize is invoked. Any map function can be used in the *by()* statement to group on calculated values. A common use case is in handling dates. You can summarize sales by day-of-week, as follows:
+
+```java
+Table summary = table.summarize("sales", mean, median)
+     .by(table.dateColumn("sales date").dayOfWeek());
+```
+
+which says "return the mean and median sales by day of week."
+
+> **Key point**: Tables are usually split based on columns, but the columns can be calculated on the fly
+
+See the documentation on [Summarizing](https://jtablesaw.github.io/tablesaw/userguide/reducing) data, and the classes in the [aggregate package](http://www.javadoc.io/page/tech.tablesaw/tablesaw-core/latest/tech/tablesaw/aggregate/package-summary.html) for more detail.
+
+##### Cross-Tabulations (AKA contingency tables)
+
+If you're only interested in how the frequently observations appear in different categories, you can use cross-tabulations. In the example below we show the table percents, but you can also get row and column percents and raw counts.
+
+```Java
+Table percents = table.xTabTablePercents("month", "who");
+
+// make table print as percents with no decimals instead of the raw doubles it holds
+percents.columnsOfType(ColumnType.DOUBLE)
+    .forEach(x -> ((NumberColumn)x).setPrintFormatter(NumberColumnFormatter.percent(0)));
+System.out.println(percents);
+```
+The formatted output is shown below.
+```
+                                  Crosstab Table Proportions:                               
+ [labels]   |  fox  |  gallup  |  newsweek  |  time.cnn  |  upenn  |  zogby  |  total  |
+----------------------------------------------------------------------------------------
+     APRIL  |   2%  |      3%  |        1%  |        0%  |     0%  |     1%  |     7%  |
+    AUGUST  |   1%  |      2%  |        1%  |        0%  |     0%  |     1%  |     5%  |
+  DECEMBER  |   1%  |      3%  |        1%  |        1%  |     1%  |     2%  |     8%  |
+  FEBRUARY  |   2%  |      3%  |        1%  |        1%  |     0%  |     1%  |     9%  |
+   JANUARY  |   2%  |      4%  |        2%  |        1%  |     2%  |     2%  |    13%  |
+      JULY  |   2%  |      3%  |        1%  |        1%  |     0%  |     1%  |     8%  |
+      JUNE  |   2%  |      3%  |        0%  |        0%  |     0%  |     1%  |     7%  |
+     MARCH  |   2%  |      4%  |        1%  |        1%  |     0%  |     2%  |     9%  |
+       MAY  |   1%  |      3%  |        2%  |        1%  |     0%  |     0%  |     7%  |
+  NOVEMBER  |   1%  |      3%  |        2%  |        1%  |     0%  |     0%  |     7%  |
+   OCTOBER  |   2%  |      3%  |        2%  |        1%  |     0%  |     1%  |    10%  |
+ SEPTEMBER  |   2%  |      3%  |        2%  |        1%  |     0%  |     1%  |     9%  |
+     Total  |  20%  |     37%  |       17%  |        9%  |     3%  |    14%  |   100%  |
+```
+
+See the section on [Cross Tabs](https://jtablesaw.github.io/tablesaw/userguide/crosstabs), and the JavaDocs for the [CrostTab](http://www.javadoc.io/page/tech.tablesaw/tablesaw-core/latest/tech/tablesaw/aggregate/CrossTab.html) class. 
+
+## Conclusion
+
+We've covered a lot of ground. To learn more, please take a look at the [User Guide](https://jtablesaw.github.io/tablesaw/userguide/toc) or API documentation ([Java Docs](http://www.javadoc.io/page/tech.tablesaw/tablesaw-core/latest/index)).
+
+[^1]: The method shown does not actually "produce" any output For that you would call *System.out.println()*. For brevity, this "faux" output will be shown indented by one tab beneath the code that produced it.
+[^2]: Note that containsString(String subString) is different from contains(). The first method looks at each string in the column to see if it conains the substring. The second method looks at every row in the column and returns true if any matches the entire string. In other words, contains is like contains as defined on List<String>. , etc.
+
+
+
+
 

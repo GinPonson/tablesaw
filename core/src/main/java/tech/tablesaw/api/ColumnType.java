@@ -1,46 +1,72 @@
-/*
- * Licensed under the Apache License, Version 2.0 (the "License");
- * you may not use this file except in compliance with the License.
- * You may obtain a copy of the License at
- *
- *     http://www.apache.org/licenses/LICENSE-2.0
- *
- * Unless required by applicable law or agreed to in writing, software
- * distributed under the License is distributed on an "AS IS" BASIS,
- * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
- * See the License for the specific language governing permissions and
- * limitations under the License.
- */
-
 package tech.tablesaw.api;
 
-
+import com.google.common.base.Preconditions;
 import tech.tablesaw.columns.Column;
+import tech.tablesaw.columns.SkipColumnType;
+import tech.tablesaw.columns.AbstractParser;
+import tech.tablesaw.columns.booleans.BooleanColumnType;
+import tech.tablesaw.columns.dates.DateColumnType;
+import tech.tablesaw.columns.datetimes.DateTimeColumnType;
+import tech.tablesaw.columns.numbers.DoubleColumnType;
+import tech.tablesaw.columns.numbers.FloatColumnType;
+import tech.tablesaw.columns.numbers.IntColumnType;
+import tech.tablesaw.columns.numbers.LongColumnType;
+import tech.tablesaw.columns.numbers.ShortColumnType;
+import tech.tablesaw.columns.strings.StringColumnType;
+import tech.tablesaw.columns.strings.TextColumnType;
+import tech.tablesaw.columns.times.TimeColumnType;
+import tech.tablesaw.io.csv.CsvReadOptions;
 
-/**
- * Defines the type of data held by a {@link Column}
- */
-public enum ColumnType {
+import java.util.HashMap;
+import java.util.Map;
 
-    BOOLEAN(Byte.MIN_VALUE),
-    CATEGORY(""),
-    FLOAT(Float.NaN),
-    DOUBLE(Double.NaN),
-    SHORT_INT(Short.MIN_VALUE),
-    INTEGER(Integer.MIN_VALUE),
-    LONG_INT(Long.MIN_VALUE),
-    LOCAL_DATE(Integer.MIN_VALUE),
-    LOCAL_DATE_TIME(Long.MIN_VALUE),
-    LOCAL_TIME(-1),
-    SKIP(null);
+public interface ColumnType {
 
-    private final Comparable<?> missingValue;
+    Map<String, ColumnType> values = new HashMap<>();
 
-    ColumnType(Comparable<?> missingValue) {
-        this.missingValue = missingValue;
+    // standard column types
+    ShortColumnType SHORT = ShortColumnType.INSTANCE;
+    IntColumnType INTEGER = IntColumnType.INSTANCE;
+    LongColumnType LONG = LongColumnType.INSTANCE;
+    FloatColumnType FLOAT = FloatColumnType.INSTANCE;
+    BooleanColumnType BOOLEAN = BooleanColumnType.INSTANCE;
+    StringColumnType STRING = StringColumnType.INSTANCE;
+    DoubleColumnType DOUBLE = DoubleColumnType.INSTANCE;
+    DateColumnType LOCAL_DATE = DateColumnType.INSTANCE;
+    DateTimeColumnType LOCAL_DATE_TIME = DateTimeColumnType.INSTANCE;
+    TimeColumnType LOCAL_TIME = TimeColumnType.INSTANCE;
+    TextColumnType TEXT = TextColumnType.INSTANCE;
+    SkipColumnType SKIP = SkipColumnType.INSTANCE;
+
+    static void register(ColumnType type) {
+        values.put(type.name(), type);
     }
 
-    public Comparable<?> getMissingValue() {
-        return missingValue;
+    static ColumnType[] values() {
+        return values.values().toArray(new ColumnType[0]);
+    }
+
+    static ColumnType valueOf(String name) {
+        Preconditions.checkNotNull(name);
+
+        ColumnType result = values.get(name);
+        if (result == null) {
+            throw new IllegalArgumentException(name + " is not a registered column type.");
+        }
+        return result;
+    }
+
+    Column<?> create(String name);
+
+    String name();
+
+    int byteSize();
+
+    String getPrinterFriendlyName();
+
+    AbstractParser<?> customParser(CsvReadOptions options);
+
+    default boolean compare(int rowNumber, Column<?> temp, Column<?> original) {
+        return original.get(rowNumber).equals(temp.get(temp.size() - 1));
     }
 }
