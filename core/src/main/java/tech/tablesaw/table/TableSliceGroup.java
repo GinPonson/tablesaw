@@ -157,9 +157,9 @@ public class TableSliceGroup implements Iterable<TableSlice> {
             String columnName = entry.getKey();
             int functionCount = 0;
             for (AggregateFunction function : entry.getValue()) {
-                String colName = aggregateColumnName(columnName, function.functionName());
+                //String colName = aggregateColumnName(columnName, function.functionName());
                 ColumnType type = function.returnType();
-                Column resultColumn = type.create(colName);
+                Column resultColumn = type.create(columnName);
                 for (TableSlice subTable : getSlices()) {
                     Object result = function.summarize(subTable.column(columnName));
                     if (functionCount == 0) {

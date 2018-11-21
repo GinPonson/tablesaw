@@ -12,6 +12,10 @@ public abstract class NumericAggregateFunction extends AggregateFunction<Numeric
         super(name);
     }
 
+    public NumericAggregateFunction(String name, String column) {
+        super(name, column);
+    }
+
     @Override
     public boolean isCompatibleColumn(ColumnType type) {
         return type.equals(ColumnType.DOUBLE)

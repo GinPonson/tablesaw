@@ -195,6 +195,27 @@ public class AggregateFunctions {
         }
     };
 
+    public static NumericAggregateFunction mean(String column) {
+        return new NumericAggregateFunction("Mean", column) {
+
+            @Override
+            public Double summarize(NumericColumn<?> column) {
+                return StatUtils.mean(removeMissing(column));
+            }
+        };
+    }
+
+
+    public static NumericAggregateFunction sum(String column) {
+        return new NumericAggregateFunction("Sum", column) {
+
+            @Override
+            public Double summarize(NumericColumn<?> column) {
+                return StatUtils.sum(removeMissing(column));
+            }
+        };
+    }
+
     /**
      * A function that calculates the sum of the values in the column param
      */

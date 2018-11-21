@@ -777,6 +777,10 @@ public class Table extends Relation implements Iterable<Row> {
         return this;
     }
 
+    public Summarizer summarize(AggregateFunction<?, ?>... functions) {
+        return new Summarizer(this, functions);
+    }
+
     public Summarizer summarize(String columName, AggregateFunction<?, ?>... functions) {
         return summarize(column(columName), functions);
     }

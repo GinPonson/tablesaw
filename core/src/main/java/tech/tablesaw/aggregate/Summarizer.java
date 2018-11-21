@@ -25,6 +25,7 @@ import tech.tablesaw.table.StandardTableSliceGroup;
 import tech.tablesaw.table.TableSliceGroup;
 
 import java.util.ArrayList;
+import java.util.Arrays;
 import java.util.List;
 import java.util.stream.Collectors;
 
@@ -42,6 +43,15 @@ public class Summarizer {
     private final Table temp;
     private final List<String> summarizedColumns = new ArrayList<>();
     private final AggregateFunction<?, ?>[] reductions;
+
+    public Summarizer(Table sourceTable, AggregateFunction<?, ?>... functions) {
+        this.temp = Table.create(sourceTable.name());
+        this.original = sourceTable;
+        //summarizedColumns.add(column.name());
+        this.reductions = functions;
+        Arrays.stream(functions).forEach(f -> summarizedColumns.add(f.aggColumn()));
+        Arrays.stream(functions).forEach(f -> temp.addColumns(sourceTable.column(f.aggColumn())));
+    }
 
     /**
      * Returns an object capable of summarizing the given column in the given sourceTable,
@@ -174,7 +184,7 @@ public class Summarizer {
                 Column column = temp.column(name);
                 Object result = function.summarize(column);
                 ColumnType type = function.returnType();
-                Column newColumn = type.create(TableSliceGroup.aggregateColumnName(name, function.functionName()));
+                Column newColumn = type.create(name);
                 if (result instanceof Number) {
                     Number number = (Number) result;
                     newColumn.append(number.doubleValue());
@@ -207,15 +217,14 @@ public class Summarizer {
 
     private ArrayListMultimap<String, AggregateFunction<?, ?>> getAggregateFunctionMultimap() {
         ArrayListMultimap<String, AggregateFunction<?, ?>> reductionMultimap = ArrayListMultimap.create();
-        for (String name: summarizedColumns) {
-            Column<?> column = temp.column(name);
-            ColumnType type = column.type();
-            for (AggregateFunction<?, ?> reduction : reductions) {
-              if (reduction.isCompatibleColumn(type)) {
-                    reductionMultimap.put(name, reduction);
-              }
+
+        for (AggregateFunction<?, ?> reduction : reductions) {
+            ColumnType type = temp.column(reduction.aggColumn()).type();
+            if (reduction.isCompatibleColumn(type)) {
+                reductionMultimap.put(reduction.aggColumn(), reduction);
             }
         }
+
         if (reductionMultimap.isEmpty()) {
             throw new IllegalArgumentException("None of the aggregate functions provided apply to the summarized column type(s).");
         }

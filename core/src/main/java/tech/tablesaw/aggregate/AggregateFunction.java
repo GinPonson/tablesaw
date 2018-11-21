@@ -10,12 +10,23 @@ public abstract class AggregateFunction<INCOL extends Column<?>, OUT> {
 
     private final String functionName;
 
+    private String column;
+
     public AggregateFunction(String functionName) {
         this.functionName = functionName;
     }
 
+    public AggregateFunction(String functionName, String column) {
+        this.functionName = functionName;
+        this.column = column;
+    }
+
     public String functionName() {
         return functionName;
+    }
+
+    public String aggColumn() {
+        return column;
     }
 
     public abstract OUT summarize(INCOL column);
