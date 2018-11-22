@@ -26,6 +26,7 @@ import java.util.function.DoubleFunction;
 import java.util.function.DoublePredicate;
 
 import static tech.tablesaw.aggregate.AggregateFunctions.*;
+import static tech.tablesaw.aggregate.AggregateFunctions.sum;
 import static tech.tablesaw.columns.numbers.NumberPredicates.*;
 
 public interface NumericColumn<T> extends Column<T>, NumberMapFunctions, NumberFilters {
@@ -294,27 +295,27 @@ public interface NumericColumn<T> extends Column<T>, NumberMapFunctions, NumberF
 
     // Reduce functions applied to the whole column
     default double sum() {
-        return sum.summarize(this);
+        return AggregateFunctions.sum(name()).summarize(this);
     }
 
     default double product() {
-        return product.summarize(this);
+        return AggregateFunctions.product(name()).summarize(this);
     }
 
     default double mean() {
-        return mean.summarize(this);
+        return AggregateFunctions.mean(name()).summarize(this);
     }
 
     default double median() {
-        return median.summarize(this);
+        return AggregateFunctions.median(name()).summarize(this);
     }
 
     default double quartile1() {
-        return quartile1.summarize(this);
+        return AggregateFunctions.quartile1(name()).summarize(this);
     }
 
     default double quartile3() {
-        return quartile3.summarize(this);
+        return AggregateFunctions.quartile3(name()).summarize(this);
     }
 
     default double percentile(double percentile) {
@@ -322,54 +323,54 @@ public interface NumericColumn<T> extends Column<T>, NumberMapFunctions, NumberF
     }
 
     default double range() {
-        return range.summarize(this);
+        return AggregateFunctions.range(name()).summarize(this);
     }
 
     default double max() {
-        return max.summarize(this);
+        return AggregateFunctions.max(name()).summarize(this);
     }
 
     default double min() {
-        return min.summarize(this);
+        return AggregateFunctions.min(name()).summarize(this);
     }
 
     default double variance() {
-        return variance.summarize(this);
+        return AggregateFunctions.variance(name()).summarize(this);
     }
 
     default double populationVariance() {
-        return populationVariance.summarize(this);
+        return AggregateFunctions.populationVariance(name()).summarize(this);
     }
 
     default double standardDeviation() {
-        return stdDev.summarize(this);
+        return AggregateFunctions.stdDev(name()).summarize(this);
     }
 
     default double sumOfLogs() {
-        return sumOfLogs.summarize(this);
+        return AggregateFunctions.sumOfLogs(name()).summarize(this);
     }
 
     default double sumOfSquares() {
-        return sumOfSquares.summarize(this);
+        return AggregateFunctions.sumOfSquares(name()).summarize(this);
     }
 
     default double geometricMean() {
-        return geometricMean.summarize(this);
+        return AggregateFunctions.geometricMean(name()).summarize(this);
     }
 
     /**
      * Returns the quadraticMean, aka the root-mean-square, for all values in this column
      */
     default double quadraticMean() {
-        return quadraticMean.summarize(this);
+        return AggregateFunctions.quadraticMean(name()).summarize(this);
     }
 
     default double kurtosis() {
-        return kurtosis.summarize(this);
+        return AggregateFunctions.kurtosis(name()).summarize(this);
     }
 
     default double skewness() {
-        return skewness.summarize(this);
+        return AggregateFunctions.skewness(name()).summarize(this);
     }
 
     /**

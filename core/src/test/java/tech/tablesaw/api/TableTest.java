@@ -58,7 +58,7 @@ public class TableTest {
     @Test
     public void testSummarize() throws Exception {
         Table table = Table.read().csv("../data/tornadoes_1950-2014.csv");
-        Table result = table.summarize("Injuries", mean, stdDev).by("State");
+        Table result = table.summarize(mean("Injuries"), stdDev("Injuries")).by("State");
         assertEquals(49, result.rowCount());
         assertEquals(3, result.columnCount());
         Assert.assertEquals("4.580805569368455", result.column(1).getString(0));

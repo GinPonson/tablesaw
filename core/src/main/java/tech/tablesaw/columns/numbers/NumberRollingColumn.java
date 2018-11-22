@@ -15,23 +15,23 @@ public class NumberRollingColumn extends RollingColumn {
     }
 
     public DoubleColumn mean() {
-        return (DoubleColumn) calc(AggregateFunctions.mean);
+        return (DoubleColumn) calc(AggregateFunctions.mean(name()));
     }
 
     public DoubleColumn median() {
-        return (DoubleColumn) calc(AggregateFunctions.median);
+        return (DoubleColumn) calc(AggregateFunctions.median(name()));
     }
 
     public DoubleColumn geometricMean() {
-        return (DoubleColumn) calc(AggregateFunctions.geometricMean);
+        return (DoubleColumn) calc(AggregateFunctions.geometricMean(name()));
     }
 
     public DoubleColumn sum() {
-        return (DoubleColumn) calc(AggregateFunctions.sum);
+        return (DoubleColumn) calc(AggregateFunctions.sum(name()));
     }
 
     public DoubleColumn pctChange() {
-        return (DoubleColumn) calc(AggregateFunctions.pctChange);
+        return (DoubleColumn) calc(AggregateFunctions.pctChange(name()));
     }
 
 }

@@ -5,8 +5,8 @@ import tech.tablesaw.api.ColumnType;
 
 abstract class BooleanCountFunction extends AggregateFunction<BooleanColumn, Integer> {
 
-    public BooleanCountFunction(String functionName) {
-        super(functionName);
+    public BooleanCountFunction(String functionName, String columnName) {
+        super(functionName, columnName);
     }
 
     @Override

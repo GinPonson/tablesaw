@@ -87,22 +87,22 @@ public class TornadoExample extends AbstractExample {
         out(fatal.numberColumn("Fatalities").summary());
 
         //TODO(lwhite): Provide a param for title of the new table (or auto-generate a better one).
-        Table injuriesByScale = tornadoes.summarize("Injuries", median).by("Scale");
-        Table fob = tornadoes.summarize("Injuries", min).by("Scale", "State");
+        Table injuriesByScale = tornadoes.summarize(median("Injuries")).by("Scale");
+        Table fob = tornadoes.summarize(min("Injuries")).by("Scale", "State");
         out(fob);
         injuriesByScale.setName("Median injuries by Tornado Scale");
         out(injuriesByScale);
 
-        injuriesByScale = tornadoes.summarize("Injuries", mean).by("Scale");
+        injuriesByScale = tornadoes.summarize(mean("Injuries")).by("Scale");
         injuriesByScale.setName("Average injuries by Tornado Scale");
         out(injuriesByScale);
 
         //TODO(lwhite): Provide a param for title of the new table (or auto-generate a better one).
-        Table injuriesByScaleState = tornadoes.summarize("Injuries", median).by("Scale", "State");
+        Table injuriesByScaleState = tornadoes.summarize(median("Injuries")).by("Scale", "State");
         injuriesByScaleState.setName("Median injuries by Tornado Scale and State");
         out(injuriesByScaleState);
 
-        Table injuriesByScaleState2 = tornadoes.summarize("Injuries", sum).by("State", "Scale");
+        Table injuriesByScaleState2 = tornadoes.summarize(sum("Injuries")).by("State", "Scale");
         injuriesByScaleState2.setName("Total injuries by Tornado Scale and State");
         out(injuriesByScaleState2);
 
@@ -132,7 +132,7 @@ public class TornadoExample extends AbstractExample {
         out(summer.first(4));
 
         // now we can summarize by year so we don't inadvertently include differences between multiple years
-        Table summary = summer.summarize(delta, mean, countNonMissing).by(summerDate.year());
+        Table summary = summer.summarize(mean(delta.name()), countNonMissing(delta.name())).by(summerDate.year());
         out(summary);
 
         // taking the mean of the annual means gives us an approximate answer

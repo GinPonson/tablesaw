@@ -84,24 +84,24 @@ public class NumberColumnTest {
         c2.appendCell("");
         assertEquals(50, c.median(), 0.00001);
         assertEquals(50, c2.median(), 0.00001);
-        assertEquals(50, median.summarize(c), 0.00001);
+        assertEquals(50, median("t").summarize(c), 0.00001);
 
         assertEquals(25, c.quartile1(), 0.00001);
         assertEquals(25, c2.quartile1(), 0.00001);
-        assertEquals(25, quartile1.summarize(c), 0.00001);
+        assertEquals(25, quartile1("t").summarize(c), 0.00001);
 
         assertEquals(75, c.quartile3(), 0.00001);
         assertEquals(75, c2.quartile3(), 0.00001);
-        assertEquals(75, quartile3.summarize(c), 0.00001);
+        assertEquals(75, quartile3("t").summarize(c), 0.00001);
 
-        assertEquals(90, percentile90.summarize(c), 0.00001);
+        assertEquals(90, percentile90("t").summarize(c), 0.00001);
 
         assertEquals(5, c2.percentile(5), 0.00001);
         assertEquals(5, c.percentile(5), 0.00001);
         assertEquals(5, percentile(c, 5.0), 0.00001);
 
-        assertEquals(95, percentile95.summarize(c), 0.00001);
-        assertEquals(99, percentile99.summarize(c), 0.00001);
+        assertEquals(95, percentile95("t").summarize(c), 0.00001);
+        assertEquals(99, percentile99("t").summarize(c), 0.00001);
     }
 
     @Test

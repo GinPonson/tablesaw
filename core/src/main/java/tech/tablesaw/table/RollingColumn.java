@@ -20,6 +20,10 @@ public class RollingColumn {
         this.window = window;
     }
 
+    public String name() {
+        return column.name();
+    }
+
     protected String generateNewColumnName(AggregateFunction<?, ?> function) {
         boolean useSpaces = column.name().matches("\\s+");
         String separator = useSpaces ? " " : "";

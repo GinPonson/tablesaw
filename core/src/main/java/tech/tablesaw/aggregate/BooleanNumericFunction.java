@@ -5,8 +5,8 @@ import tech.tablesaw.api.ColumnType;
 
 abstract class BooleanNumericFunction extends AggregateFunction<BooleanColumn, Double> {
 
-    public BooleanNumericFunction(String functionName) {
-        super(functionName);
+    public BooleanNumericFunction(String functionName, String columnName) {
+        super(functionName, columnName);
     }
 
     @Override

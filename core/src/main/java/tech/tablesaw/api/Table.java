@@ -15,6 +15,7 @@
 package tech.tablesaw.api;
 
 import com.google.common.base.Preconditions;
+import com.google.common.collect.Lists;
 import com.google.common.primitives.Ints;
 import it.unimi.dsi.fastutil.ints.IntArrays;
 import it.unimi.dsi.fastutil.ints.IntComparator;
@@ -564,8 +565,8 @@ public class Table extends Relation implements Iterable<Row> {
     /**
      * Adds a single row to this table from sourceTable, copying every column in sourceTable
      *
-     * @param rowIndex      The row in sourceTable to add to this table
-     * @param sourceTable   A table with the same column structure as this table
+     * @param rowIndex    The row in sourceTable to add to this table
+     * @param sourceTable A table with the same column structure as this table
      */
     public void addRow(int rowIndex, Table sourceTable) {
         for (int i = 0; i < columnCount(); i++) {
@@ -619,12 +620,12 @@ public class Table extends Relation implements Iterable<Row> {
     /**
      * Returns a non-overlapping and exhaustive collection of "slices" over this table.
      * Each slice is like a virtual table containing a subset of the records in this table
-     *
+     * <p>
      * This method is intended for advanced or unusual operations on the subtables.
      * If you want to calculate summary statistics for each subtable, the summarize methods (e.g)
-     *
+     * <p>
      * table.summarize(myColumn, mean, median).by(columns)
-     *
+     * <p>
      * are preferred
      */
     public TableSliceGroup splitOn(String... columns) {
@@ -634,12 +635,12 @@ public class Table extends Relation implements Iterable<Row> {
     /**
      * Returns a non-overlapping and exhaustive collection of "slices" over this table.
      * Each slice is like a virtual table containing a subset of the records in this table
-     *
+     * <p>
      * This method is intended for advanced or unusual operations on the subtables.
      * If you want to calculate summary statistics for each subtable, the summarize methods (e.g)
-     *
+     * <p>
      * table.summarize(myColumn, mean, median).by(columns)
-     *
+     * <p>
      * are preferred
      */
     public TableSliceGroup splitOn(CategoricalColumn<?>... columns) {
@@ -765,8 +766,9 @@ public class Table extends Relation implements Iterable<Row> {
      * Add all the columns of tableToConcatenate to this table
      * Note: The columns in the result must have unique names, when compared case insensitive
      * Note: Both tables must have the same number of rows
-     * @param tableToConcatenate    The table containing the columns to be added
-     * @return                      This table
+     *
+     * @param tableToConcatenate The table containing the columns to be added
+     * @return This table
      */
     public Table concat(Table tableToConcatenate) {
         Preconditions.checkArgument(tableToConcatenate.rowCount() == this.rowCount(),
@@ -781,43 +783,8 @@ public class Table extends Relation implements Iterable<Row> {
         return new Summarizer(this, functions);
     }
 
-    public Summarizer summarize(String columName, AggregateFunction<?, ?>... functions) {
-        return summarize(column(columName), functions);
-    }
-
-    public Summarizer summarize(List<String> columnNames, AggregateFunction<?, ?>... functions) {
-        return new Summarizer(this, columnNames, functions);
-    }
-
-    public Summarizer summarize(String numericColumn1Name, String numericColumn2Name, AggregateFunction<?, ?>... functions) {
-        return summarize(column(numericColumn1Name), column(numericColumn2Name), functions);
-    }
-
-    public Summarizer summarize(String col1Name, String col2Name, String col3Name, AggregateFunction<?, ?>... functions) {
-        return summarize(column(col1Name), column(col2Name), column(col3Name), functions);
-    }
-
-    public Summarizer summarize(String col1Name, String col2Name, String col3Name, String col4Name, AggregateFunction<?, ?>... functions) {
-        return summarize(column(col1Name), column(col2Name), column(col3Name), column(col4Name), functions);
-    }
-
-    public Summarizer summarize(Column<?> numberColumn, AggregateFunction<?, ?>... function) {
-        return new Summarizer(this, numberColumn, function);
-    }
-
-    public Summarizer summarize(Column<?> column1, Column<?> column2,
-                                AggregateFunction<?, ?>... function) {
-        return new Summarizer(this, column1, column2, function);
-    }
-
-    public Summarizer summarize(Column<?> column1, Column<?> column2, Column<?> column3,
-                                AggregateFunction<?, ?>... function) {
-        return new Summarizer(this, column1, column2, column3, function);
-    }
-
-    public Summarizer summarize(Column<?> column1, Column<?> column2, Column<?> column3, Column<?> column4,
-                                AggregateFunction<?, ?>... function) {
-        return new Summarizer(this, column1, column2, column3, column4, function);
+    public Summarizer summarize(List<AggregateFunction<?, ?>> functions) {
+        return new Summarizer(this, functions.toArray(new AggregateFunction<?, ?>[]{}));
     }
 
     /**
@@ -870,15 +837,20 @@ public class Table extends Relation implements Iterable<Row> {
 
     /**
      * Returns a new DataFrameJoiner initialized with multiple {@code columnNames}
-     * @param columnNames   Name of the columns to join on.
-     * @return              The new DataFrameJoiner
+     *
+     * @param columnNames Name of the columns to join on.
+     * @return The new DataFrameJoiner
      */
     public DataFrameJoiner join(String... columnNames) {
         return new DataFrameJoiner(this, columnNames);
-	}
+    }
 
     public Table missingValueCounts() {
-        return summarize(columnNames(), countMissing).apply();
+        List<AggregateFunction<?, ?>> functions = Lists.newArrayList();
+        for (String column : columnNames()) {
+            functions.add(countMissing(column));
+        }
+        return summarize(functions).apply();
     }
 
     @Override
@@ -1021,7 +993,7 @@ public class Table extends Relation implements Iterable<Row> {
 
         /**
          * Returns an object containing the results of applying doWithPair() to the rows in a table.
-         *
+         * <p>
          * The default implementation throws an exception, to be used if the operation produces only side effects
          */
         default Object getResult() {

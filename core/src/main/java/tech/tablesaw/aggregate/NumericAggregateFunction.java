@@ -8,10 +8,6 @@ import tech.tablesaw.api.NumericColumn;
  */
 public abstract class NumericAggregateFunction extends AggregateFunction<NumericColumn<?>, Double> {
 
-    public NumericAggregateFunction(String name) {
-        super(name);
-    }
-
     public NumericAggregateFunction(String name, String column) {
         super(name, column);
     }

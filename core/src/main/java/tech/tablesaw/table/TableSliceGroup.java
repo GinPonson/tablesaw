@@ -16,6 +16,7 @@ package tech.tablesaw.table;
 
 import com.google.common.base.Preconditions;
 import com.google.common.base.Splitter;
+import com.google.common.base.Strings;
 import com.google.common.collect.ArrayListMultimap;
 import com.google.common.collect.ListMultimap;
 import com.google.common.collect.Lists;
@@ -25,11 +26,7 @@ import tech.tablesaw.api.StringColumn;
 import tech.tablesaw.api.Table;
 import tech.tablesaw.columns.Column;
 
-import java.util.ArrayList;
-import java.util.Collection;
-import java.util.Iterator;
-import java.util.List;
-import java.util.Map;
+import java.util.*;
 
 /**
  * A group of tables formed by performing splitting operations on an original table
@@ -141,6 +138,14 @@ public class TableSliceGroup implements Iterable<TableSlice> {
         return aggregate(columnFunctionMap);
     }
 
+    public Table aggregate(AggregateFunction<?,?>... functions) {
+        ArrayListMultimap<String, AggregateFunction<?,?>> columnFunctionMap = ArrayListMultimap.create();
+        for (AggregateFunction<?, ?> function : functions) {
+            columnFunctionMap.put(function.aggColumn(), function);
+        }
+        return aggregate(columnFunctionMap);
+    }
+
     /**
      * Applies the given aggregations to the given columns.
      * The apply and combine steps of a split-apply-combine.
@@ -157,9 +162,12 @@ public class TableSliceGroup implements Iterable<TableSlice> {
             String columnName = entry.getKey();
             int functionCount = 0;
             for (AggregateFunction function : entry.getValue()) {
-                //String colName = aggregateColumnName(columnName, function.functionName());
-                ColumnType type = function.returnType();
-                Column resultColumn = type.create(columnName);
+
+                // set column name
+                String colName = !Strings.isNullOrEmpty(function.getAlias()) ? function.getAlias()
+                        : aggregateColumnName(columnName, function.functionName());
+                Column resultColumn = function.returnType().create(colName);
+
                 for (TableSlice subTable : getSlices()) {
                     Object result = function.summarize(subTable.column(columnName));
                     if (functionCount == 0) {

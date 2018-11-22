@@ -8,8 +8,8 @@ import tech.tablesaw.api.ColumnType;
  */
 public abstract class BooleanAggregateFunction extends AggregateFunction<BooleanColumn, Boolean> {
 
-    public BooleanAggregateFunction(String name) {
-        super(name);
+    public BooleanAggregateFunction(String functionName, String columnName) {
+        super(functionName, columnName);
     }
 
     abstract public Boolean summarize(BooleanColumn column);

@@ -43,7 +43,7 @@ public class AggregateFunctionsTest {
     public void testGroupMean() {
         StringColumn byColumn = table.stringColumn("who");
         TableSliceGroup group = StandardTableSliceGroup.create(table, byColumn);
-        Table result = group.aggregate("approval", mean, stdDev);
+        Table result = group.aggregate(mean("approval"), stdDev("approval"));
         System.out.println(result);
         assertEquals(3, result.columnCount());
         assertEquals("who", result.column(0).name());
@@ -55,38 +55,39 @@ public class AggregateFunctionsTest {
     @Test
     public void testDateMin() {
         StringColumn byColumn = table.dateColumn("date").yearQuarter();
-        //Table result = table.summarize("approval", "date", mean, earliestDate).by(byColumn);
+        Table result = table.summarize(mean("approval"), earliestDate("date")).by(byColumn);
 
-        Table result = table.summarize(sum("approval" ), mean("cubed")).apply();
+        //Table result = table.summarize(sum("approval" ), mean("approval")).apply();
         System.out.println(result);
-        //assertEquals(3, result.columnCount());
-        //assertEquals(13, result.rowCount());
+        assertEquals(3, result.columnCount());
+        assertEquals(13, result.rowCount());
     }
 
     @Test
     public void testBooleanAggregateFunctions() {
         boolean[] values = {true, false};
         BooleanColumn bc = BooleanColumn.create("test", values);
-        assertTrue(anyTrue.summarize(bc));
-        assertFalse(noneTrue.summarize(bc));
-        assertFalse(allTrue.summarize(bc));
+        assertTrue(anyTrue("test").summarize(bc));
+        assertFalse(noneTrue("test").summarize(bc));
+        assertFalse(allTrue("test").summarize(bc));
     }
 
     @Test
     public void testGroupMean2() {
-        Table result = table.summarize("approval", mean, stdDev).apply();
+        Table result = table.summarize(mean("approval"), stdDev("approval")).apply();
+        System.out.println(result);
         assertEquals(2, result.columnCount());
     }
 
     @Test
     public void testApplyWithNonNumericResults() {
-        Table result = table.summarize("date", earliestDate, latestDate).apply();
+        Table result = table.summarize( earliestDate("date"), latestDate("date")).apply();
         assertEquals(2, result.columnCount());
     }
 
     @Test
     public void testGroupMean3() {
-        Summarizer function = table.summarize("approval", mean, stdDev);
+        Summarizer function = table.summarize(mean("approval"), stdDev("approval"));
         Table result = function.by("Group", 10);
         assertEquals(32, result.rowCount());
     }
@@ -95,32 +96,24 @@ public class AggregateFunctionsTest {
     public void testGroupMean4() {
         table.addColumns(table.numberColumn("approval").cube());
         table.column(3).setName("cubed");
-        Table result = table.summarize("approval", "cubed", mean, stdDev).apply();
+        Table result = table.summarize(mean("approval"), stdDev("cubed")).apply();
         assertEquals(4, result.columnCount());
     }
 
     @Test
     public void testGroupMeanByStep() {
         TableSliceGroup group = SelectionTableSliceGroup.create(table, "Step", 5);
-        Table result = group.aggregate("approval", mean, stdDev);
+        Table result = group.aggregate(mean("approval"), stdDev("approval"));
         assertEquals(3, result.columnCount());
         assertEquals("53.6", result.getUnformatted(0, 1));
         assertEquals("2.5099800796022267", result.getUnformatted(0, 2));
     }
 
     @Test
-    public void testSummaryWithACalculatedColumn() {
-        Summarizer summarizer = new Summarizer(table, table.dateColumn("date").year(), mean);
-        Table t = summarizer.apply();
-        double avg = t.doubleColumn(0).get(0);
-        assertTrue(avg > 2002 && avg < 2003);
-    }
-
-    @Test
     public void test2ColumnGroupMean() {
         StringColumn byColumn1 = table.stringColumn("who");
         DateColumn byColumn2 = table.dateColumn("date");
-        Table result = table.summarize("approval", mean, sum).by(byColumn1, byColumn2);
+        Table result = table.summarize(mean("approval"), sum("approval")).by(byColumn1, byColumn2);
         assertEquals(4, result.columnCount());
         assertEquals("who", result.column(0).name());
         assertEquals(323, result.rowCount());
@@ -133,7 +126,7 @@ public class AggregateFunctionsTest {
         table.column(3).setName("cubed");
         StringColumn byColumn1 = table.stringColumn("who");
         StringColumn byColumn2 = table.dateColumn("date").yearMonth();
-        Table result = table.summarize("approval", "cubed", mean, sum).by(byColumn1, byColumn2);
+        Table result = table.summarize(mean("approval"), sum("cubed")).by(byColumn1, byColumn2);
         System.out.println(result);
         assertEquals(6, result.columnCount());
         assertEquals("who", result.column(0).name());
@@ -153,7 +146,7 @@ public class AggregateFunctionsTest {
         StringColumn stringColumn = StringColumn.create("s", strings);
 
         Table table = Table.create("test", booleanColumn, numberColumn);
-        table.summarize(booleanColumn, numberColumn, countTrue, standardDeviation).by(stringColumn);
+        table.summarize(countTrue("b"), standardDeviation("n")).by(stringColumn);
     }
 
     @Test
@@ -169,7 +162,7 @@ public class AggregateFunctionsTest {
         StringColumn stringColumn = StringColumn.create("s", strings);
 
         Table table = Table.create("test", booleanColumn, numberColumn, stringColumn);
-        Table summarized = table.summarize(booleanColumn, numberColumn, countTrue, standardDeviation).apply();
+        Table summarized = table.summarize(countTrue("b"), standardDeviation("n")).apply();
         assertEquals(1.2909944487358056, summarized.doubleColumn(1).get(0), 0.00001);
     }
 
@@ -179,13 +172,13 @@ public class AggregateFunctionsTest {
         c.append(true);
         c.appendCell("");
         c.append(false);
-        assertEquals(1, countTrue.summarize(c), 0.0001);
-        assertEquals(1, countFalse.summarize(c), 0.0001);
-        assertEquals(0.5, proportionFalse.summarize(c), 0.0001);
-        assertEquals(0.5, proportionTrue.summarize(c), 0.0001);
-        assertEquals(1, countMissing.summarize(c), 0.0001);
-        assertEquals(3, countWithMissing.summarize(c), 0.0001);
-        assertEquals(2, countUnique.summarize(c), 0.0001);
+        assertEquals(1, countTrue("test").summarize(c), 0.0001);
+        assertEquals(1, countFalse("test").summarize(c), 0.0001);
+        assertEquals(0.5, proportionFalse("test").summarize(c), 0.0001);
+        assertEquals(0.5, proportionTrue("test").summarize(c), 0.0001);
+        assertEquals(1, countMissing("test").summarize(c), 0.0001);
+        assertEquals(3, countWithMissing("test").summarize(c), 0.0001);
+        assertEquals(2, countUnique("test").summarize(c), 0.0001);
     }
 
 
@@ -195,13 +188,13 @@ public class AggregateFunctionsTest {
         DoubleColumn c = DoubleColumn.create("test", values);
         c.appendCell("");
 
-        assertEquals(1, countMissing.summarize(c), 0.0001);
-        assertEquals(11, countWithMissing.summarize(c), 0.0001);
+        assertEquals(1, countMissing("test").summarize(c), 0.0001);
+        assertEquals(11, countWithMissing("test").summarize(c), 0.0001);
 
-        assertEquals(StatUtils.percentile(values, 90), percentile90.summarize(c), 0.0001);
-        assertEquals(StatUtils.percentile(values, 95), percentile95.summarize(c), 0.0001);
-        assertEquals(StatUtils.percentile(values, 99), percentile99.summarize(c), 0.0001);
+        assertEquals(StatUtils.percentile(values, 90), percentile90("test").summarize(c), 0.0001);
+        assertEquals(StatUtils.percentile(values, 95), percentile95("test").summarize(c), 0.0001);
+        assertEquals(StatUtils.percentile(values, 99), percentile99("test").summarize(c), 0.0001);
 
-        assertEquals(10, countUnique.summarize(c), 0.0001);
+        assertEquals(10, countUnique("test").summarize(c), 0.0001);
     }
 }

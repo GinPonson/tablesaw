@@ -8,17 +8,15 @@ import tech.tablesaw.columns.Column;
  */
 public abstract class AggregateFunction<INCOL extends Column<?>, OUT> {
 
-    private final String functionName;
+    private String functionName;
 
-    private String column;
+    private String columnName;
 
-    public AggregateFunction(String functionName) {
+    private String alias;
+
+    public AggregateFunction(String functionName, String columnName) {
         this.functionName = functionName;
-    }
-
-    public AggregateFunction(String functionName, String column) {
-        this.functionName = functionName;
-        this.column = column;
+        this.columnName = columnName;
     }
 
     public String functionName() {
@@ -26,7 +24,16 @@ public abstract class AggregateFunction<INCOL extends Column<?>, OUT> {
     }
 
     public String aggColumn() {
-        return column;
+        return columnName;
+    }
+
+    public AggregateFunction as(String alias) {
+        this.alias = alias;
+        return this;
+    }
+
+    public String getAlias() {
+        return alias;
     }
 
     public abstract OUT summarize(INCOL column);

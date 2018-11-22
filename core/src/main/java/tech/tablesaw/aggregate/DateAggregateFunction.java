@@ -10,8 +10,8 @@ import java.time.LocalDate;
  */
 public abstract class DateAggregateFunction extends AggregateFunction<DateColumn, LocalDate> {
 
-    public DateAggregateFunction(String name) {
-        super(name);
+    public DateAggregateFunction(String functionName, String columnName) {
+        super(functionName, columnName);
     }
 
     abstract public LocalDate summarize(DateColumn column);

@@ -5,8 +5,8 @@ import tech.tablesaw.columns.Column;
 
 abstract class CountFunction extends AggregateFunction<Column<?>, Integer> {
 
-    public CountFunction(String functionName) {
-        super(functionName);
+    public CountFunction(String functionName, String columnName) {
+        super(functionName, columnName);
     }
 
     @Override

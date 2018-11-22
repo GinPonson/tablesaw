@@ -14,7 +14,7 @@
 
 package tech.tablesaw.aggregate;
 
-import com.google.common.base.Preconditions;
+import com.google.common.base.Strings;
 import com.google.common.collect.ArrayListMultimap;
 import tech.tablesaw.api.CategoricalColumn;
 import tech.tablesaw.api.ColumnType;
@@ -23,6 +23,7 @@ import tech.tablesaw.columns.Column;
 import tech.tablesaw.table.SelectionTableSliceGroup;
 import tech.tablesaw.table.StandardTableSliceGroup;
 import tech.tablesaw.table.TableSliceGroup;
+import tech.tablesaw.util.StringUtils;
 
 import java.util.ArrayList;
 import java.util.Arrays;
@@ -41,101 +42,20 @@ public class Summarizer {
 
     private final Table original;
     private final Table temp;
-    private final List<String> summarizedColumns = new ArrayList<>();
     private final AggregateFunction<?, ?>[] reductions;
 
+    /**
+     * Returns an object capable of summarizing the given column in the given sourceTable,
+     * by applying the given functions
+     */
     public Summarizer(Table sourceTable, AggregateFunction<?, ?>... functions) {
         this.temp = Table.create(sourceTable.name());
         this.original = sourceTable;
-        //summarizedColumns.add(column.name());
         this.reductions = functions;
-        Arrays.stream(functions).forEach(f -> summarizedColumns.add(f.aggColumn()));
-        Arrays.stream(functions).forEach(f -> temp.addColumns(sourceTable.column(f.aggColumn())));
-    }
 
-    /**
-     * Returns an object capable of summarizing the given column in the given sourceTable,
-     * by applying the given functions
-     */
-    public Summarizer(Table sourceTable, Column<?> column, AggregateFunction<?, ?>... functions) {
-        Table tempTable = Table.create(sourceTable.name());
-        tempTable.addColumns(column);
-        this.temp = tempTable;
-        this.original = sourceTable;
-        summarizedColumns.add(column.name());
-        this.reductions = functions;
-    }
-
-    /**
-     * Returns an object capable of summarizing the given column in the given sourceTable,
-     * by applying the given functions
-     */
-    public Summarizer(Table sourceTable, List<String> columnNames, AggregateFunction<?, ?>... functions) {
-        Table tempTable = Table.create(sourceTable.name());
-        for (String nm : columnNames) {
-            tempTable.addColumns(sourceTable.column(nm));
-        }
-        this.temp = tempTable;
-        this.original = sourceTable;
-        summarizedColumns.addAll(columnNames);
-        this.reductions = functions;
-    }
-
-    /**
-     * Returns an object capable of summarizing the given columns in the given sourceTable,
-     * by applying the given functions
-     */
-    public Summarizer(Table sourceTable, Column<?> column1, Column<?> column2, AggregateFunction<?, ?>... functions) {
-        Table tempTable = Table.create(sourceTable.name());
-        tempTable.addColumns(column1);
-        tempTable.addColumns(column2);
-        this.temp = tempTable;
-        this.original = sourceTable;
-        summarizedColumns.add(column1.name());
-        summarizedColumns.add(column2.name());
-        this.reductions = functions;
-    }
-
-    /**
-     * Returns an object capable of summarizing the given columns in the given sourceTable,
-     * by applying the given functions
-     */
-    public Summarizer(Table sourceTable,
-                      Column<?> column1,
-                      Column<?> column2,
-                      Column<?> column3,
-                      Column<?> column4,
-                      AggregateFunction<?, ?>... functions) {
-        Preconditions.checkArgument(!sourceTable.isEmpty(), "The table to summarize is empty.");
-        Table tempTable = Table.create(sourceTable.name());
-        tempTable.addColumns(column1);
-        tempTable.addColumns(column2);
-        tempTable.addColumns(column3);
-        tempTable.addColumns(column4);
-        this.temp = tempTable;
-        this.original = sourceTable;
-        summarizedColumns.add(column1.name());
-        summarizedColumns.add(column2.name());
-        summarizedColumns.add(column3.name());
-        summarizedColumns.add(column4.name());
-        this.reductions = functions;
-    }
-
-    /**
-     * Returns an object capable of summarizing the given column2 in the given sourceTable,
-     * by applying the given functions
-     */
-    public Summarizer(Table sourceTable, Column<?> column1, Column<?> column2, Column<?> column3, AggregateFunction<?, ?>... functions) {
-        Table tempTable = Table.create(sourceTable.name());
-        tempTable.addColumns(column1);
-        tempTable.addColumns(column2);
-        tempTable.addColumns(column3);
-        this.temp = tempTable;
-        this.original = sourceTable;
-        summarizedColumns.add(column1.name());
-        summarizedColumns.add(column2.name());
-        summarizedColumns.add(column3.name());
-        this.reductions = functions;
+        List<String> columnNames = Arrays.stream(functions).map(AggregateFunction::aggColumn)
+                .distinct().collect(Collectors.toList());
+        columnNames.forEach(columnName -> temp.addColumns(sourceTable.column(columnName)));
     }
 
     public Table by(String... columnNames) {
@@ -183,8 +103,11 @@ public class Summarizer {
             for (AggregateFunction function : reductions) {
                 Column column = temp.column(name);
                 Object result = function.summarize(column);
-                ColumnType type = function.returnType();
-                Column newColumn = type.create(name);
+
+                String columnName = !Strings.isNullOrEmpty(function.getAlias()) ? function.getAlias()
+                        : TableSliceGroup.aggregateColumnName(name, function.functionName());
+                Column newColumn = function.returnType().create(columnName);
+
                 if (result instanceof Number) {
                     Number number = (Number) result;
                     newColumn.append(number.doubleValue());

@@ -31,13 +31,15 @@ import tech.tablesaw.io.csv.CsvReadOptions;
 
 public class TableSliceGroupTest {
 
-    private static NumericAggregateFunction exaggerate = new NumericAggregateFunction("exageration") {
+    private static NumericAggregateFunction exaggerate(String colmn) {
+        return new NumericAggregateFunction("exageration", colmn) {
 
-        @Override
-        public Double summarize(NumericColumn<?> data) {
-            return StatUtils.max(data.asDoubleArray()) + 1000;
-        }
-    };
+            @Override
+            public Double summarize(NumericColumn<?> data) {
+                return StatUtils.max(data.asDoubleArray()) + 1000;
+            }
+        };
+    }
 
     private Table table;
 
@@ -76,7 +78,7 @@ public class TableSliceGroupTest {
 
     @Test
     public void testCustomFunction() {
-        Table exaggeration = table.summarize("approval", exaggerate).by("who");
+        Table exaggeration = table.summarize( exaggerate("approval")).by("who");
         StringColumn group = exaggeration.stringColumn(0);
         assertTrue(group.contains("fox"));
     }

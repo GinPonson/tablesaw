@@ -8,8 +8,8 @@ import tech.tablesaw.api.StringColumn;
  */
 public abstract class StringFunction extends AggregateFunction<StringColumn, String> {
 
-    public StringFunction(String name) {
-        super(name);
+    public StringFunction(String functionName, String columnName) {
+        super(functionName, columnName);
     }
 
     abstract public String summarize(StringColumn column);
