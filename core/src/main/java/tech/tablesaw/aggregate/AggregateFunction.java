@@ -45,4 +45,6 @@ public abstract class AggregateFunction<INCOL extends Column<?>, OUT> {
     public abstract boolean isCompatibleColumn(ColumnType type);
 
     public abstract ColumnType returnType();
+
+    public abstract INCOL compatibleColumn(Column<?> column);
 }

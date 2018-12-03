@@ -2,6 +2,7 @@ package tech.tablesaw.aggregate;
 
 import tech.tablesaw.api.BooleanColumn;
 import tech.tablesaw.api.ColumnType;
+import tech.tablesaw.columns.Column;
 
 abstract class BooleanNumericFunction extends AggregateFunction<BooleanColumn, Double> {
 
@@ -20,5 +21,10 @@ abstract class BooleanNumericFunction extends AggregateFunction<BooleanColumn, D
     @Override
     public ColumnType returnType() {
         return null;
+    }
+
+    @Override
+    public BooleanColumn compatibleColumn(Column<?> column) {
+        return (BooleanColumn) column;
     }
 }

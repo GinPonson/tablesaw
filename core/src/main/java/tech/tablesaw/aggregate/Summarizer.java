@@ -53,6 +53,7 @@ public class Summarizer {
         this.original = sourceTable;
         this.reductions = functions;
 
+        // add columns to temp table
         List<String> columnNames = Arrays.stream(functions).map(AggregateFunction::aggColumn)
                 .distinct().collect(Collectors.toList());
         columnNames.forEach(columnName -> temp.addColumns(sourceTable.column(columnName)));
@@ -60,24 +61,15 @@ public class Summarizer {
 
     public Table by(String... columnNames) {
         for (String columnName : columnNames) {
-            if (tableDoesNotContain(columnName, temp)) {
-                temp.addColumns(original.column(columnName));
-            }
+            temp.addColumnsIgnoreExists(original.column(columnName));
         }
         TableSliceGroup group = StandardTableSliceGroup.create(temp, columnNames);
         return summarize(group);
     }
 
-    private boolean tableDoesNotContain(String columnName, Table table) {
-        List<String> upperCase = table.columnNames().stream().map(String::toUpperCase).collect(Collectors.toList());
-        return !upperCase.contains(columnName.toUpperCase());
-    }
-
     public Table by(CategoricalColumn<?>... columns) {
         for (Column<?> c : columns) {
-            if (!temp.containsColumn(c)) {
-                temp.addColumns(c);
-            }
+            temp.addColumnsIgnoreExists(c);
         }
         TableSliceGroup group = StandardTableSliceGroup.create(temp, columns);
         return summarize(group);
@@ -108,17 +100,18 @@ public class Summarizer {
                         : TableSliceGroup.aggregateColumnName(name, function.functionName());
                 Column newColumn = function.returnType().create(columnName);
 
-                if (result instanceof Number) {
+                /*if (result instanceof Number) {
                     Number number = (Number) result;
                     newColumn.append(number.doubleValue());
                 } else {
                     newColumn.append(result);
-                }
+                }*/
+                newColumn.append(result);
                 table.addColumns(newColumn);
             }
             results.add(table);
         }
-        return (combineTables(results));
+        return combineTables(results);
     }
 
     /**
@@ -144,6 +137,7 @@ public class Summarizer {
         for (AggregateFunction<?, ?> reduction : reductions) {
             ColumnType type = temp.column(reduction.aggColumn()).type();
             if (reduction.isCompatibleColumn(type)) {
+                temp.replaceColumn(reduction.aggColumn(), reduction.compatibleColumn(temp.column(reduction.aggColumn())));
                 reductionMultimap.put(reduction.aggColumn(), reduction);
             }
         }
@@ -165,9 +159,7 @@ public class Summarizer {
                 result = table;
             } else {
                 for (Column<?> column : table.columns()) {
-                    if (tableDoesNotContain(column.name(), result)) {
-                        result.addColumns(column);
-                    }
+                    result.addColumnsIgnoreExists(column);
                 }
             }
         }

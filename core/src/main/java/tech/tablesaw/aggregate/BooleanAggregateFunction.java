@@ -2,6 +2,10 @@ package tech.tablesaw.aggregate;
 
 import tech.tablesaw.api.BooleanColumn;
 import tech.tablesaw.api.ColumnType;
+import tech.tablesaw.api.DoubleColumn;
+import tech.tablesaw.api.NumericColumn;
+import tech.tablesaw.columns.Column;
+import tech.tablesaw.util.NumberUtils;
 
 /**
  * A partial implementation of aggregate functions to summarize over a boolean column
@@ -22,5 +26,10 @@ public abstract class BooleanAggregateFunction extends AggregateFunction<Boolean
     @Override
     public ColumnType returnType() {
         return ColumnType.BOOLEAN;
+    }
+
+    @Override
+    public BooleanColumn compatibleColumn(Column<?> column) {
+        return (BooleanColumn) column;
     }
 }

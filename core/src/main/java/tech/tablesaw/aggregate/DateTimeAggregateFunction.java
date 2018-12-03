@@ -1,7 +1,9 @@
 package tech.tablesaw.aggregate;
 
 import tech.tablesaw.api.ColumnType;
+import tech.tablesaw.api.DateColumn;
 import tech.tablesaw.api.DateTimeColumn;
+import tech.tablesaw.columns.Column;
 
 import java.time.LocalDateTime;
 
@@ -24,5 +26,10 @@ public abstract class DateTimeAggregateFunction extends AggregateFunction<DateTi
     @Override
     public ColumnType returnType() {
         return ColumnType.LOCAL_DATE_TIME;
+    }
+
+    @Override
+    public DateTimeColumn compatibleColumn(Column<?> column) {
+        return (DateTimeColumn) column;
     }
 }
