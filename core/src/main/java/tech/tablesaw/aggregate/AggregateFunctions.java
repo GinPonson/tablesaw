@@ -222,6 +222,16 @@ public class AggregateFunctions {
         };
     }
 
+    public static CountFunction countWithMissing(String column) {
+        return new CountFunction("Count (incl. missing)", column) {
+
+            @Override
+            public Integer summarize(Column<?> column) {
+                return column.size();
+            }
+        };
+    }
+
     /**
      * A function that calculates the mean of the values in the column param
      */
@@ -254,16 +264,6 @@ public class AggregateFunctions {
             @Override
             public Double summarize(NumericColumn<?> column) {
                 return percentile(column, 50.0);
-            }
-        };
-    }
-
-    public static CountFunction countWithMissing(String column) {
-        return new CountFunction("Count (incl. missing)", column) {
-
-            @Override
-            public Integer summarize(Column<?> column) {
-                return column.size();
             }
         };
     }

@@ -1,6 +1,5 @@
 package tech.tablesaw.aggregate;
 
-import tech.tablesaw.api.BooleanColumn;
 import tech.tablesaw.api.ColumnType;
 import tech.tablesaw.api.DateColumn;
 import tech.tablesaw.columns.Column;

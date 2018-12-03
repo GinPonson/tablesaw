@@ -42,7 +42,7 @@ public class Summarizer {
 
     private final Table original;
     private final Table temp;
-    private final AggregateFunction<?, ?>[] reductions;
+    private final ArrayListMultimap<String, AggregateFunction<?, ?>> reductionMultimap;
 
     /**
      * Returns an object capable of summarizing the given column in the given sourceTable,
@@ -51,12 +51,28 @@ public class Summarizer {
     public Summarizer(Table sourceTable, AggregateFunction<?, ?>... functions) {
         this.temp = Table.create(sourceTable.name());
         this.original = sourceTable;
-        this.reductions = functions;
 
-        // add columns to temp table
+        // add columns which need aggregate to temp table
         List<String> columnNames = Arrays.stream(functions).map(AggregateFunction::aggColumn)
                 .distinct().collect(Collectors.toList());
         columnNames.forEach(columnName -> temp.addColumns(sourceTable.column(columnName)));
+
+        // set reduction map of agg column
+        this.reductionMultimap = ArrayListMultimap.create();
+        for (AggregateFunction<?, ?> reduction : functions) {
+            Column aggColumn = temp.column(reduction.aggColumn());
+
+            if (reduction.isCompatibleColumn(aggColumn.type())) {
+                Column compatibleColumn = reduction.compatibleColumn(aggColumn);
+                temp.replaceColumn(aggColumn.name(), compatibleColumn);
+
+                reductionMultimap.put(reduction.aggColumn(), reduction);
+            }
+        }
+
+        if (reductionMultimap.isEmpty()) {
+            throw new IllegalArgumentException("None of the aggregate functions provided apply to the summarized column type(s).");
+        }
     }
 
     public Table by(String... columnNames) {
@@ -87,10 +103,9 @@ public class Summarizer {
     @SuppressWarnings({ "unchecked", "rawtypes" })
     public Table apply() {
         List<Table> results = new ArrayList<>();
-        ArrayListMultimap<String, AggregateFunction<?, ?>> reductionMultimap = getAggregateFunctionMultimap();
 
-        for (String name : reductionMultimap.keys()) {
-            List<AggregateFunction<?, ?>> reductions = reductionMultimap.get(name);
+        for (String name : this.reductionMultimap.keys()) {
+            List<AggregateFunction<?, ?>> reductions = this.reductionMultimap.get(name);
             Table table = TableSliceGroup.summaryTableName(temp);
             for (AggregateFunction function : reductions) {
                 Column column = temp.column(name);
@@ -122,30 +137,11 @@ public class Summarizer {
     private Table summarize(TableSliceGroup group) {
         List<Table> results = new ArrayList<>();
 
-        ArrayListMultimap<String, AggregateFunction<?, ?>> reductionMultimap = getAggregateFunctionMultimap();
-
-        for (String name : reductionMultimap.keys()) {
-            List<AggregateFunction<?, ?>> reductions = reductionMultimap.get(name);
+        for (String name : this.reductionMultimap.keys()) {
+            List<AggregateFunction<?, ?>> reductions = this.reductionMultimap.get(name);
             results.add(group.aggregate(name, reductions.toArray(new AggregateFunction<?, ?>[0])));
         }
         return combineTables(results);
-    }
-
-    private ArrayListMultimap<String, AggregateFunction<?, ?>> getAggregateFunctionMultimap() {
-        ArrayListMultimap<String, AggregateFunction<?, ?>> reductionMultimap = ArrayListMultimap.create();
-
-        for (AggregateFunction<?, ?> reduction : reductions) {
-            ColumnType type = temp.column(reduction.aggColumn()).type();
-            if (reduction.isCompatibleColumn(type)) {
-                temp.replaceColumn(reduction.aggColumn(), reduction.compatibleColumn(temp.column(reduction.aggColumn())));
-                reductionMultimap.put(reduction.aggColumn(), reduction);
-            }
-        }
-
-        if (reductionMultimap.isEmpty()) {
-            throw new IllegalArgumentException("None of the aggregate functions provided apply to the summarized column type(s).");
-        }
-        return reductionMultimap;
     }
 
     private Table combineTables(List<Table> tables) {

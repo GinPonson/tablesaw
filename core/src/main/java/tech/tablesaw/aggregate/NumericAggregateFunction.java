@@ -21,7 +21,8 @@ public abstract class NumericAggregateFunction extends AggregateFunction<Numeric
                 || type.equals(ColumnType.FLOAT)
                 || type.equals(ColumnType.INTEGER)
                 || type.equals(ColumnType.SHORT)
-                || type.equals(ColumnType.LONG);
+                || type.equals(ColumnType.LONG)
+                || type.equals(ColumnType.STRING);
     }
 
     @Override
@@ -34,7 +35,7 @@ public abstract class NumericAggregateFunction extends AggregateFunction<Numeric
         if (column.type().equals(ColumnType.STRING)) {
             DoubleColumn newColumn = DoubleColumn.create(column.name(), column.size());
             for (int i = 0; i < column.size(); i++) {
-                newColumn.append(NumberUtils.toBigDecimal(column.get(i)).doubleValue());
+                newColumn.set(i, NumberUtils.toBigDecimal(column.get(i)).doubleValue());
             }
             return newColumn;
         }

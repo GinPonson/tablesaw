@@ -20,7 +20,7 @@ abstract class BooleanNumericFunction extends AggregateFunction<BooleanColumn, D
 
     @Override
     public ColumnType returnType() {
-        return null;
+        return ColumnType.DOUBLE;
     }
 
     @Override

@@ -20,7 +20,7 @@ abstract class BooleanCountFunction extends AggregateFunction<BooleanColumn, Int
 
     @Override
     public ColumnType returnType() {
-        return ColumnType.DOUBLE;
+        return ColumnType.INTEGER;
     }
 
     @Override

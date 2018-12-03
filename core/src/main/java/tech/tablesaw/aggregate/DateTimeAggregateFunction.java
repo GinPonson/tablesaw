@@ -1,7 +1,6 @@
 package tech.tablesaw.aggregate;
 
 import tech.tablesaw.api.ColumnType;
-import tech.tablesaw.api.DateColumn;
 import tech.tablesaw.api.DateTimeColumn;
 import tech.tablesaw.columns.Column;
 

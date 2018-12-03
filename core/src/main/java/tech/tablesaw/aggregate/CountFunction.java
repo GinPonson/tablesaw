@@ -1,6 +1,5 @@
 package tech.tablesaw.aggregate;
 
-import tech.tablesaw.api.BooleanColumn;
 import tech.tablesaw.api.ColumnType;
 import tech.tablesaw.columns.Column;
 
@@ -20,7 +19,7 @@ abstract class CountFunction extends AggregateFunction<Column<?>, Integer> {
 
     @Override
     public ColumnType returnType() {
-        return ColumnType.DOUBLE;
+        return ColumnType.INTEGER;
     }
 
     @Override
