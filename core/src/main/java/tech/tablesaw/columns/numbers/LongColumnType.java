@@ -24,18 +24,14 @@ public class LongColumnType extends AbstractColumnType {
         return LongColumn.create(name);
     }
 
-    public LongParser defaultParser() {
+    @Override
+    public AbstractParser<?> defaultParser() {
         return DEFAULT_PARSER;
     }
 
     @Override
     public LongParser customParser(CsvReadOptions options) {
         return new LongParser(this, options);
-    }
-
-    @Override
-    public AbstractParser<?> parser() {
-        return new LongParser(this);
     }
 
     public static boolean isMissingValue(long value) {

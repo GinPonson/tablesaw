@@ -30,7 +30,7 @@ public class ShortColumnType extends AbstractColumnType {
     }
 
     @Override
-    public AbstractParser<?> parser() {
+    public AbstractParser<?> defaultParser() {
         return new ShortParser(this);
     }
 

@@ -30,7 +30,7 @@ public class FloatColumnType extends AbstractColumnType {
     }
 
     @Override
-    public AbstractParser<?> parser() {
+    public AbstractParser<?> defaultParser() {
         return new FloatParser(this);
     }
 

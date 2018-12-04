@@ -32,7 +32,7 @@ public class BooleanColumnType extends AbstractColumnType {
     }
 
     @Override
-    public AbstractParser<?> parser() {
+    public AbstractParser<?> defaultParser() {
         return new BooleanParser(this);
     }
 

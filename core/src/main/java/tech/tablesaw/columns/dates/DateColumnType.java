@@ -31,7 +31,7 @@ public class DateColumnType extends AbstractColumnType {
     }
 
     @Override
-    public AbstractParser<?> parser() {
+    public AbstractParser<?> defaultParser() {
         return new DateParser(this);
     }
 

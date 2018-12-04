@@ -30,7 +30,7 @@ public class IntColumnType extends AbstractColumnType {
     }
 
     @Override
-    public AbstractParser<?> parser() {
+    public AbstractParser<?> defaultParser() {
         return new IntParser(this);
     }
 

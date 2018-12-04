@@ -30,7 +30,7 @@ public class DoubleColumnType extends AbstractColumnType {
     }
 
     @Override
-    public AbstractParser<?> parser() {
+    public AbstractParser<?> defaultParser() {
         return new DoubleParser(this);
     }
 

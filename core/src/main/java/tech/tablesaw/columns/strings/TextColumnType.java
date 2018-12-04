@@ -31,7 +31,7 @@ public class TextColumnType extends AbstractColumnType {
     }
 
     @Override
-    public AbstractParser<?> parser() {
+    public AbstractParser<?> defaultParser() {
         return new StringParser(this);
     }
 

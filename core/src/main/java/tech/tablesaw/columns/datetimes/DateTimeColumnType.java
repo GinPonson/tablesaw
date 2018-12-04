@@ -30,7 +30,7 @@ public class DateTimeColumnType extends AbstractColumnType {
     }
 
     @Override
-    public AbstractParser<?> parser() {
+    public AbstractParser<?> defaultParser() {
         return new DateTimeParser(this);
     }
 

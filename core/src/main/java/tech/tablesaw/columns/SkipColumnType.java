@@ -22,7 +22,7 @@ public class SkipColumnType extends AbstractColumnType {
     }
 
     @Override
-    public AbstractParser<?> parser() {
+    public AbstractParser<?> defaultParser() {
         throw new UnsupportedOperationException("Column type " + name() + " doesn't support parsing");
     }
 
