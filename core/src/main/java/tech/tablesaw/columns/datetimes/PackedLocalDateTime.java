@@ -147,7 +147,7 @@ public class PackedLocalDateTime {
                         + Strings.padStart(Byte.toString(PackedLocalDate.getMonthValue(date)), 2, '0')
                         + "-"
                         + Strings.padStart(Byte.toString(PackedLocalDate.getDayOfMonth(date)), 2, '0')
-                        + "T"
+                        + " "
                         + Strings.padStart(Byte.toString(PackedLocalTime.getHour(time)), 2, '0')
                         + ":"
                         + Strings.padStart(Byte.toString(PackedLocalTime.getMinute(time)), 2, '0')
