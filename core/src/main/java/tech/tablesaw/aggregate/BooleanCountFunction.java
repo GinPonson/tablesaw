@@ -4,7 +4,7 @@ import tech.tablesaw.api.BooleanColumn;
 import tech.tablesaw.api.ColumnType;
 import tech.tablesaw.columns.Column;
 
-abstract class BooleanCountFunction extends AggregateFunction<BooleanColumn, Integer> {
+public abstract class BooleanCountFunction extends AggregateFunction<BooleanColumn, Integer> {
 
     public BooleanCountFunction(String functionName, String columnName) {
         super(functionName, columnName);

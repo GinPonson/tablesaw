@@ -4,7 +4,7 @@ import tech.tablesaw.api.BooleanColumn;
 import tech.tablesaw.api.ColumnType;
 import tech.tablesaw.columns.Column;
 
-abstract class BooleanNumericFunction extends AggregateFunction<BooleanColumn, Double> {
+public abstract class BooleanNumericFunction extends AggregateFunction<BooleanColumn, Double> {
 
     public BooleanNumericFunction(String functionName, String columnName) {
         super(functionName, columnName);
