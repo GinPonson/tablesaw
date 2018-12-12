@@ -26,7 +26,7 @@ public class LongColumnType extends AbstractColumnType {
 
     @Override
     public AbstractParser<?> defaultParser() {
-        return DEFAULT_PARSER;
+        return new LongParser(this);
     }
 
     @Override
