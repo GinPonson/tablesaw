@@ -355,8 +355,8 @@ public class ShortColumn extends NumberColumn<Short> implements CategoricalColum
 
     @Override
     public String getUnformattedString(final int row) {
-        final int value = getInt(row);
-        if (IntColumnType.isMissingValue(value)) {
+        final short value = getShort(row);
+        if (ShortColumnType.isMissingValue(value)) {
             return "";
         }
         return String.valueOf(value);
