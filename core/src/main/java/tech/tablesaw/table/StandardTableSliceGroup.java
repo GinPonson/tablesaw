@@ -78,28 +78,28 @@ public class StandardTableSliceGroup extends TableSliceGroup {
         for (int row = 0; row < getSourceTable().rowCount(); row++) {
 
             ByteBuffer byteBuffer = ByteBuffer.allocate(byteSize);
-            String newStringKey = "";
+            StringBuilder newStringKey = new StringBuilder();
 
             for (int col = 0; col < columnNames.length; col++) {
                 if (col > 0) {
-                    newStringKey = newStringKey + SPLIT_STRING;
+                    newStringKey.append(SPLIT_STRING);
                 }
 
                 Column<?> c = getSourceTable().column(columnNames[col]);
                 String groupKey = getSourceTable().getUnformatted(row, getSourceTable().columnIndex(c));
-                newStringKey = newStringKey + groupKey;
+                newStringKey.append(groupKey);
                 byteBuffer.put(c.asBytes(row));
             }
             byte[] newKey = byteBuffer.array();
             if (row == 0) {
                 currentKey = newKey;
-                currentStringKey = newStringKey;
+                currentStringKey = newStringKey.toString();
             }
             if (!Arrays.equals(newKey, currentKey)) {
                 currentKey = newKey;
                 view = new TableSlice(getSourceTable(), selection);
                 view.setName(currentStringKey);
-                currentStringKey = newStringKey;
+                currentStringKey = newStringKey.toString();
                 addSlice(view);
                 selection = new BitmapBackedSelection();
                 selection.add(row);

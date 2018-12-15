@@ -147,6 +147,15 @@ public class Table extends Relation implements Iterable<Row> {
         return this;
     }
 
+    public Table addColumnsIgnoreExists(final Column<?>... cols) {
+        for (final Column<?> c : cols) {
+            if (!this.hasColumn(c.name())) {
+                columnList.add(c);
+            }
+        }
+        return this;
+    }
+
     /**
      * Throws an IllegalArgumentException if a column with the given name is already in the table
      */
@@ -586,10 +595,25 @@ public class Table extends Relation implements Iterable<Row> {
     }
 
     public Table dropRows(int... rowNumbers) {
+        if (rowNumbers.length == 0) {
+            return this;
+        }
         Preconditions.checkArgument(Ints.max(rowNumbers) <= rowCount());
         Selection selection = Selection.withRange(0, rowCount())
                 .andNot(Selection.with(rowNumbers));
         return where(selection);
+    }
+
+    public Table dropRows(Predicate<Row> predicate) {
+        List<Integer> rowNumbers = new ArrayList<>();
+        int i = 0;
+        for (Row row : this) {
+            if (predicate.test(row)) {
+                rowNumbers.add(i);
+            }
+            i++;
+        }
+        return dropRows(rowNumbers.stream().mapToInt(num -> num).toArray());
     }
 
     public Table inRange(int rowStart, int rowEnd) {
@@ -751,6 +775,10 @@ public class Table extends Relation implements Iterable<Row> {
         columnList.clear();
         columnList.addAll(retained);
         return this;
+    }
+
+    public boolean hasColumn(String columnName) {
+        return this.columnNames().contains(columnName);
     }
 
     @SuppressWarnings({"rawtypes", "unchecked"})

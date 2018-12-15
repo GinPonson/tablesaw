@@ -220,6 +220,10 @@ public class Row implements Iterator<Row> {
         return columnMap.get(columnNames[columnIndex]).get(rowNumber);
     }
 
+    public Table getTable() {
+        return this.table;
+    }
+
     @Override
     public String toString() {
         Table t = table.emptyCopy();

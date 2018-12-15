@@ -173,12 +173,13 @@ public class TableSliceGroup implements Iterable<TableSlice> {
                     if (functionCount == 0) {
                         groupColumn.append(subTable.name());
                     }
-                    if (result instanceof Number) {
+                    /*if (result instanceof Number) {
                         Number number = (Number) result;
                         resultColumn.append(number.doubleValue());
                     } else {
                         resultColumn.append(result);
-                    }
+                    }*/
+                    resultColumn.append(result);
                 }
                 groupTable.addColumns(resultColumn);
                 functionCount++;
