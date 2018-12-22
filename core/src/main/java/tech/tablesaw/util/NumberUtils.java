@@ -103,7 +103,11 @@ public class NumberUtils {
             Number v = NumberFormat.getPercentInstance().parse(num.toString().trim());
             return new BigDecimal(v.doubleValue());
         } catch (ParseException e) {
-            return new BigDecimal(num.toString().trim());
+            try {
+                return new BigDecimal(num.toString().trim());
+            } catch (NumberFormatException ex) {
+                throw new RuntimeException(String.format("[%s]不能转换为数字", num));
+            }
         }
     }
 

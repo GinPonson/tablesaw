@@ -29,7 +29,7 @@ import static tech.tablesaw.aggregate.AggregateFunctions.*;
 import static tech.tablesaw.aggregate.AggregateFunctions.sum;
 import static tech.tablesaw.columns.numbers.NumberPredicates.*;
 
-public interface NumericColumn<T> extends Column<T>, NumberMapFunctions, NumberFilters {
+public interface NumericColumn<T> extends CategoricalColumn<T>, NumberMapFunctions, NumberFilters {
 
     @Override
     default boolean isEmpty() {

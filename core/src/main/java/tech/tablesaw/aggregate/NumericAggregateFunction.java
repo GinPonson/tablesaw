@@ -1,5 +1,6 @@
 package tech.tablesaw.aggregate;
 
+import com.google.common.base.Strings;
 import tech.tablesaw.api.ColumnType;
 import tech.tablesaw.api.DoubleColumn;
 import tech.tablesaw.api.NumericColumn;
@@ -35,7 +36,9 @@ public abstract class NumericAggregateFunction extends AggregateFunction<Numeric
         if (column.type().equals(ColumnType.STRING)) {
             DoubleColumn newColumn = DoubleColumn.create(column.name(), column.size());
             for (int i = 0; i < column.size(); i++) {
-                newColumn.set(i, NumberUtils.toBigDecimal(column.get(i)).doubleValue());
+                if (!Strings.isNullOrEmpty(column.getUnformattedString(i))){
+                    newColumn.set(i, NumberUtils.toBigDecimal(column.get(i)).doubleValue());
+                }
             }
             return newColumn;
         }
