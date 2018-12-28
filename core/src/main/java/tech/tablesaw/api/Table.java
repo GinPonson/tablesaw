@@ -149,7 +149,7 @@ public class Table extends Relation implements Iterable<Row> {
 
     public Table addColumnsIgnoreExists(final Column<?>... cols) {
         for (final Column<?> c : cols) {
-            if (!this.hasColumn(c.name())) {
+            if (!this.containsColumn(c.name())) {
                 columnList.add(c);
             }
         }
@@ -777,7 +777,7 @@ public class Table extends Relation implements Iterable<Row> {
         return this;
     }
 
-    public boolean hasColumn(String columnName) {
+    public boolean containsColumn(String columnName) {
         return this.columnNames().contains(columnName);
     }
 
