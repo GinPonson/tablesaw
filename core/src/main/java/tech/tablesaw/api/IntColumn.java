@@ -18,6 +18,7 @@ import tech.tablesaw.columns.numbers.IntColumnType;
 import tech.tablesaw.columns.numbers.NumberColumnFormatter;
 import tech.tablesaw.selection.Selection;
 
+import java.math.BigDecimal;
 import java.nio.ByteBuffer;
 import java.util.Comparator;
 import java.util.Iterator;
@@ -333,6 +334,9 @@ public class IntColumn extends NumberColumn<Integer> implements CategoricalColum
         }
         if (obj instanceof Integer) {
             return append((int) obj);
+        }
+        if (obj instanceof BigDecimal) {
+            return append(((BigDecimal) obj).intValue());
         }
         throw new IllegalArgumentException("Could not append " + obj.getClass());
     }
