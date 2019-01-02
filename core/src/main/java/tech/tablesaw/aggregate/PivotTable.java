@@ -22,7 +22,8 @@ import java.util.Map;
  */
 public class PivotTable {
 
-    public static Table pivot(Table table, CategoricalColumn<?> column1, CategoricalColumn<?> column2, NumberColumn<?> values, AggregateFunction<?,?> aggregateFunction) {
+    public static Table pivot(Table table, CategoricalColumn<?> column1, CategoricalColumn<?> column2,
+                              NumberColumn<?> values, AggregateFunction<?,?> aggregateFunction) {
 
         TableSliceGroup tsg = table.splitOn(column1);
 
@@ -70,7 +71,7 @@ public class PivotTable {
             AggregateFunction<?,?> function) {
 
         Table temp = slice.asTable();
-        Table summary = temp.summarize(values.name(), function).by(column1.name(), column2.name());
+        Table summary = temp.summarize(function).by(column1.name(), column2.name());
 
         Map<String, Double> valueMap = new HashMap<>();
         NumberColumn<?> nc = summary.numberColumn(summary.columnCount() - 1);
