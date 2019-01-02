@@ -6,7 +6,6 @@ import it.unimi.dsi.fastutil.bytes.Byte2ObjectMap;
 import it.unimi.dsi.fastutil.bytes.Byte2ObjectOpenHashMap;
 import it.unimi.dsi.fastutil.bytes.ByteArrayList;
 import it.unimi.dsi.fastutil.bytes.ByteArrays;
-import it.unimi.dsi.fastutil.bytes.ByteCollection;
 import it.unimi.dsi.fastutil.bytes.ByteComparator;
 import it.unimi.dsi.fastutil.bytes.ByteListIterator;
 import it.unimi.dsi.fastutil.bytes.ByteOpenHashSet;
@@ -103,10 +102,6 @@ public class ByteDictionaryMap implements DictionaryMap {
         return valueToKey.keySet();
     }
 
-    private ByteCollection values() {
-        return valueToKey.values();
-    }
-
     private Byte2ObjectMap<String> keyToValueMap() {
         return keyToValue;
     }
@@ -167,6 +162,11 @@ public class ByteDictionaryMap implements DictionaryMap {
 
     @Override
     public Object[] asObjectArray() {
+        return asStringArray();
+    }
+
+    @Override
+    public String[] asStringArray() {
         final String[] output = new String[size()];
         for (int i = 0; i < size(); i++) {
             output[i] = getValueForIndex(i);
@@ -218,7 +218,7 @@ public class ByteDictionaryMap implements DictionaryMap {
         byte key;
         if (value == null || StringColumnType.missingValueIndicator().equals(value)) {
             key = MISSING_VALUE;
-            put(key, value);
+            put(key, StringColumnType.missingValueIndicator());
         } else {
             key = getKeyForValue(value);
         }

@@ -60,6 +60,17 @@ TODO: fix
     }
 
     @Test
+    public void testForNulls() {
+        String[] array1 = {"1", "2", "3", "4", null};
+        Table table1 = Table.create("table1", StringColumn.create("id", array1));
+        assertEquals("", table1.stringColumn("id").get(4));
+
+        String[] array2 = {"1", "2", null, "", "5"};
+        Table table2 = Table.create("table2", StringColumn.create("id", array2));
+        assertEquals("", table2.stringColumn("id").get(3));
+    }
+
+    @Test
     public void testAppendObj() {
         StringColumn column = StringColumn.create("testing");
         column.appendObj("Value 1");

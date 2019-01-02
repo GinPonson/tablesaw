@@ -6,7 +6,6 @@ import it.unimi.dsi.fastutil.ints.Int2ObjectMap;
 import it.unimi.dsi.fastutil.ints.Int2ObjectOpenHashMap;
 import it.unimi.dsi.fastutil.ints.IntArrayList;
 import it.unimi.dsi.fastutil.ints.IntArrays;
-import it.unimi.dsi.fastutil.ints.IntCollection;
 import it.unimi.dsi.fastutil.ints.IntComparator;
 import it.unimi.dsi.fastutil.ints.IntListIterator;
 import it.unimi.dsi.fastutil.ints.IntOpenHashSet;
@@ -110,10 +109,6 @@ public class IntDictionaryMap implements DictionaryMap {
         return valueToKey.keySet();
     }
 
-    private IntCollection values() {
-        return valueToKey.values();
-    }
-
     private Int2ObjectMap<String> keyToValueMap() {
         return keyToValue;
     }
@@ -170,6 +165,11 @@ public class IntDictionaryMap implements DictionaryMap {
 
     @Override
     public Object[] asObjectArray() {
+        return asStringArray();
+    }
+
+    @Override
+    public String[] asStringArray() {
         final String[] output = new String[size()];
         for (int i = 0; i < size(); i++) {
             output[i] = getValueForIndex(i);
@@ -225,7 +225,7 @@ public class IntDictionaryMap implements DictionaryMap {
         int key;
         if (value == null || StringColumnType.missingValueIndicator().equals(value)) {
             key = MISSING_VALUE;
-            put(key, value);
+            put(key, StringColumnType.missingValueIndicator());
         } else {
             key = getKeyForValue(value);
         }

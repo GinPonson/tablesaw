@@ -400,7 +400,7 @@ public class StringColumn extends AbstractColumn<String>
     }
 
     public IntColumn asNumberColumn() {
-        IntColumn numberColumn = IntColumn.create(this.name() + ": codes", size());
+        IntColumn numberColumn = IntColumn.create(this.name() + ": codes");
         IntArrayList data = data();
         for (int i = 0; i < size(); i++) {
             numberColumn.append(data.getInt(i));
@@ -563,6 +563,10 @@ public class StringColumn extends AbstractColumn<String>
     @Override
     public Object[] asObjectArray() {
         return lookupTable.asObjectArray();
+    }
+
+    public String[] asStringArray() {
+        return lookupTable.asStringArray();
     }
 
     @Override
