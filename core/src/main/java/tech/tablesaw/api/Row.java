@@ -220,6 +220,10 @@ public class Row implements Iterator<Row> {
         return columnMap.get(columnNames[columnIndex]).get(rowNumber);
     }
 
+    public boolean valueIsMissing(String columnName) {
+        return table.column(columnName).isMissing(rowNumber);
+    }
+
     public Table getTable() {
         return this.table;
     }
