@@ -14,18 +14,22 @@
 
 package tech.tablesaw.api;
 
-import org.junit.Before;
-import org.junit.Test;
-import tech.tablesaw.TestDataUtil;
-import tech.tablesaw.columns.strings.StringColumnFormatter;
-import tech.tablesaw.selection.Selection;
+import static org.junit.Assert.assertArrayEquals;
+import static org.junit.Assert.assertEquals;
+import static org.junit.Assert.assertFalse;
+import static org.junit.Assert.assertTrue;
+import static tech.tablesaw.columns.strings.StringPredicates.isEqualToIgnoringCase;
 
 import java.util.Arrays;
 import java.util.List;
 import java.util.function.Function;
 
-import static org.junit.Assert.*;
-import static tech.tablesaw.columns.strings.StringPredicates.isEqualToIgnoringCase;
+import org.junit.Before;
+import org.junit.Test;
+
+import tech.tablesaw.TestDataUtil;
+import tech.tablesaw.columns.strings.StringColumnFormatter;
+import tech.tablesaw.selection.Selection;
 
 public class StringColumnTest {
 
@@ -496,5 +500,33 @@ TODO: fix
         StringColumn result = wordColumn.concatenate(" bam");
         assertEquals("foo bam", result.get(0));
         assertEquals("bar bam", result.get(1));
+    }
+
+    @Test
+    public void asDoubleColumn() {
+        String[] words = {"foo", "bar", "larry", "foo", "lion", "ben", "tiger", "bar"};
+        StringColumn wordColumn = StringColumn.create("words", words);
+        DoubleColumn result = wordColumn.asDoubleColumn();
+        assertArrayEquals(new double[] { 0.0, 1.0, 2.0, 0.0, 3.0, 4.0, 5.0, 1.0 }, result.asDoubleArray(), 0.000_000_1);
+    }
+
+    @Test
+    public void asDoubleArray() {
+        String[] words = {"foo", "bar", "larry", "foo", "lion", null, "ben", "tiger", "bar"};
+        StringColumn wordColumn = StringColumn.create("words", words);
+        double[] result = wordColumn.asDoubleArray();
+        assertArrayEquals(new double[] { 0.0, 1.0, 2.0, 0.0, 3.0, 4.0, 5.0, 6.0, 1.0 }, result, 0.000_000_1);
+    }
+
+    @Test
+    public void getDouble() {
+        String[] words = {"foo", "bar", "larry", "foo", "lion", null, "ben", "tiger", "bar"};
+        StringColumn wordColumn = StringColumn.create("words", words);
+        double[] expected = new double[] { 0.0, 1.0, 2.0, 0.0, 3.0, 4.0, 5.0, 6.0, 1.0 };
+        double[] result = new double[words.length];
+        for (int i = 0; i < words.length; i++) {
+            result[i] = wordColumn.getDouble(i);
+        }
+        assertArrayEquals(expected, result, 0.000_000_1);
     }
 }

@@ -150,26 +150,12 @@ public class IntDictionaryMap implements DictionaryMap {
         return categories();
     }
 
-    @Override
-    public IntArrayList dataAsIntArray() {
-        IntArrayList copy = new IntArrayList(size());
-        for (int i = 0; i < size(); i++) {
-            copy.add(values.getInt(i));
-        }
-        return copy;
-    }
-
     public int firstIndexOf(String value) {
         return values.indexOf(getKeyForValue(value));
     }
 
     @Override
-    public Object[] asObjectArray() {
-        return asStringArray();
-    }
-
-    @Override
-    public String[] asStringArray() {
+    public String[] asObjectArray() {
         final String[] output = new String[size()];
         for (int i = 0; i < size(); i++) {
             output[i] = getValueForIndex(i);

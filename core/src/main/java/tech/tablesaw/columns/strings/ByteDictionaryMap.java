@@ -9,7 +9,6 @@ import it.unimi.dsi.fastutil.bytes.ByteArrays;
 import it.unimi.dsi.fastutil.bytes.ByteComparator;
 import it.unimi.dsi.fastutil.bytes.ByteListIterator;
 import it.unimi.dsi.fastutil.bytes.ByteOpenHashSet;
-import it.unimi.dsi.fastutil.ints.IntArrayList;
 import it.unimi.dsi.fastutil.objects.Object2ByteOpenHashMap;
 import tech.tablesaw.api.BooleanColumn;
 import tech.tablesaw.api.IntColumn;
@@ -147,26 +146,12 @@ public class ByteDictionaryMap implements DictionaryMap {
         return categories();
     }
 
-    @Override
-    public IntArrayList dataAsIntArray() {
-        IntArrayList copy = new IntArrayList(size());
-        for (int i = 0; i < size(); i++) {
-            copy.add(values.getByte(i));
-        }
-        return copy;
-    }
-
     public int firstIndexOf(String value) {
         return values.indexOf(getKeyForValue(value));
     }
 
     @Override
-    public Object[] asObjectArray() {
-        return asStringArray();
-    }
-
-    @Override
-    public String[] asStringArray() {
+    public String[] asObjectArray() {
         final String[] output = new String[size()];
         for (int i = 0; i < size(); i++) {
             output[i] = getValueForIndex(i);

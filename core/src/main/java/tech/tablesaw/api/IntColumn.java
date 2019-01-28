@@ -27,8 +27,6 @@ import java.util.function.Predicate;
 
 public class IntColumn extends NumberColumn<Integer> implements CategoricalColumn<Integer> {
 
-    private static final IntColumnType COLUMN_TYPE = ColumnType.INTEGER;
-
     /**
      * Compares two ints, such that a sort based on this comparator would sort in descending order
      */
@@ -37,7 +35,7 @@ public class IntColumn extends NumberColumn<Integer> implements CategoricalColum
     private final IntArrayList data;
 
     protected IntColumn(final String name, IntArrayList data) {
-        super(COLUMN_TYPE, name);
+        super(IntColumnType.instance(), name);
         this.printFormatter = NumberColumnFormatter.ints();
         this.data = data;
     }
@@ -208,7 +206,7 @@ public class IntColumn extends NumberColumn<Integer> implements CategoricalColum
     }
 
     @Override
-    public Object[] asObjectArray() {
+    public Integer[] asObjectArray() {
         final Integer[] output = new Integer[size()];
         for (int i = 0; i < size(); i++) {
             output[i] = getInt(i);
@@ -261,7 +259,7 @@ public class IntColumn extends NumberColumn<Integer> implements CategoricalColum
 
     @Override
     public byte[] asBytes(int rowNumber) {
-        return ByteBuffer.allocate(COLUMN_TYPE.byteSize()).putInt(getInt(rowNumber)).array();
+        return ByteBuffer.allocate(IntColumnType.instance().byteSize()).putInt(getInt(rowNumber)).array();
     }
 
     @Override

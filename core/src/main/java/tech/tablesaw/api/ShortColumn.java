@@ -26,8 +26,6 @@ import java.util.function.Predicate;
 
 public class ShortColumn extends NumberColumn<Short> implements CategoricalColumn<Short> {
 
-    private static final ShortColumnType COLUMN_TYPE = ColumnType.SHORT;
-
     /**
      * Compares two ints, such that a sort based on this comparator would sort in descending order
      */
@@ -36,7 +34,7 @@ public class ShortColumn extends NumberColumn<Short> implements CategoricalColum
     private final ShortArrayList data;
 
     protected ShortColumn(final String name, ShortArrayList data) {
-        super(COLUMN_TYPE, name);
+        super(ShortColumnType.instance(), name);
         this.printFormatter = NumberColumnFormatter.ints();
         this.data = data;
     }
@@ -199,7 +197,7 @@ public class ShortColumn extends NumberColumn<Short> implements CategoricalColum
     }
 
     @Override
-    public Object[] asObjectArray() {
+    public Short[] asObjectArray() {
         final Short[] output = new Short[size()];
         for (int i = 0; i < size(); i++) {
             output[i] = getShort(i);
@@ -252,7 +250,7 @@ public class ShortColumn extends NumberColumn<Short> implements CategoricalColum
 
     @Override
     public byte[] asBytes(int rowNumber) {
-        return ByteBuffer.allocate(COLUMN_TYPE.byteSize()).putShort(getShort(rowNumber)).array();
+        return ByteBuffer.allocate(ShortColumnType.instance().byteSize()).putShort(getShort(rowNumber)).array();
     }
 
     @Override

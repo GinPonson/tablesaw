@@ -18,6 +18,7 @@ import org.junit.Before;
 import org.junit.Test;
 import tech.tablesaw.columns.Column;
 import tech.tablesaw.columns.numbers.IntColumnType;
+import tech.tablesaw.columns.times.TimeColumnType;
 import tech.tablesaw.selection.Selection;
 
 import java.nio.ByteBuffer;
@@ -31,7 +32,6 @@ import static org.junit.Assert.assertFalse;
 import static org.junit.Assert.assertNotEquals;
 import static org.junit.Assert.assertNull;
 import static org.junit.Assert.assertTrue;
-import static tech.tablesaw.api.TimeColumn.MISSING_VALUE;
 import static tech.tablesaw.columns.times.PackedLocalTime.getMinuteOfDay;
 import static tech.tablesaw.columns.times.PackedLocalTime.getSecondOfDay;
 import static tech.tablesaw.columns.times.PackedLocalTime.of;
@@ -205,16 +205,16 @@ public class TimeColumnTest {
     @Test
     public void countMissing() {
         fillLargerColumn();
-        column1.appendInternal(MISSING_VALUE);
-        column1.appendInternal(MISSING_VALUE);
+        column1.appendInternal(TimeColumnType.missingValueIndicator());
+        column1.appendInternal(TimeColumnType.missingValueIndicator());
         assertEquals(3, column1.countMissing());
     }
 
     @Test
     public void isMissingIsNotMissing() {
         fillLargerColumn();
-        column1.appendInternal(MISSING_VALUE);
-        column1.appendInternal(MISSING_VALUE);
+        column1.appendInternal(TimeColumnType.missingValueIndicator());
+        column1.appendInternal(TimeColumnType.missingValueIndicator());
         Selection s = column1.isMissing();
         assertEquals(3, s.size());
         Selection s2 = column1.isNotMissing();
@@ -224,7 +224,7 @@ public class TimeColumnTest {
     @Test
     public void countUnique() {
         fillLargerColumn();
-        column1.appendInternal(MISSING_VALUE);
+        column1.appendInternal(TimeColumnType.missingValueIndicator());
         assertEquals(10, column1.countUnique());
     }
 
@@ -274,7 +274,7 @@ public class TimeColumnTest {
         TimeColumn column2 = column1.plusHours(3);
         IntColumn numberColumn = column2.differenceInHours(column1);
         int expected = -3;
-        check(numberColumn, expected);
+        assertMinAndMaxEquals(expected, numberColumn);
     }
 
     @Test
@@ -287,7 +287,7 @@ public class TimeColumnTest {
         assertEquals(0, column2.get(0).getMinute());
         assertEquals(0, column2.get(0).getSecond());
         assertEquals(0, column2.get(0).getNano());
-        assertEquals(MISSING_VALUE, column2.getIntInternal(2));
+        assertEquals(TimeColumnType.missingValueIndicator(), column2.getIntInternal(2));
     }
 
     @Test
@@ -346,7 +346,7 @@ public class TimeColumnTest {
         TimeColumn column2 = column1.minusHours(0);
         IntColumn numberColumn = column2.differenceInHours(column1);
         int expected = 0;
-        check(numberColumn, expected);
+        assertMinAndMaxEquals(expected, numberColumn);
     }
 
     @Test
@@ -355,7 +355,7 @@ public class TimeColumnTest {
         TimeColumn column2 = column1.plusMinutes(30);
         IntColumn numberColumn = column2.differenceInMinutes(column1);
         int expected = -30;
-        check(numberColumn, expected);
+        assertMinAndMaxEquals(expected, numberColumn);
     }
 
     @Test
@@ -364,7 +364,7 @@ public class TimeColumnTest {
         TimeColumn column2 = column1.minusMinutes(30);
         IntColumn numberColumn = column2.differenceInMinutes(column1);
         int expected = 30;
-        check(numberColumn, expected);
+        assertMinAndMaxEquals(expected, numberColumn);
     }
 
     @Test
@@ -373,7 +373,7 @@ public class TimeColumnTest {
         TimeColumn column2 = column1.plusSeconds(101);
         IntColumn numberColumn = column2.differenceInSeconds(column1);
         int expected = -101;
-        check(numberColumn, expected);
+        assertMinAndMaxEquals(expected, numberColumn);
     }
 
     @Test
@@ -382,7 +382,7 @@ public class TimeColumnTest {
         TimeColumn column2 = column1.minusSeconds(101);
         IntColumn numberColumn = column2.differenceInSeconds(column1);
         int expected = 101;
-        check(numberColumn, expected);
+        assertMinAndMaxEquals(expected, numberColumn);
     }
 
     @Test
@@ -391,7 +391,7 @@ public class TimeColumnTest {
         TimeColumn column2 = column1.plusMilliseconds(101);
         IntColumn numberColumn = column2.differenceInMilliseconds(column1);
         int expected = -101;
-        check(numberColumn, expected);
+        assertMinAndMaxEquals(expected, numberColumn);
     }
 
     @Test
@@ -400,7 +400,7 @@ public class TimeColumnTest {
         TimeColumn column2 = column1.minusMilliseconds(101);
         IntColumn numberColumn = column2.differenceInMilliseconds(column1);
         int expected = 101;
-        check(numberColumn, expected);
+        assertMinAndMaxEquals(expected, numberColumn);
     }
 
     @Test
@@ -410,7 +410,7 @@ public class TimeColumnTest {
         assertNull(col.get(0));
     }
 
-    private void check(IntColumn numberColumn, int expected) {
+    private void assertMinAndMaxEquals(int expected, IntColumn numberColumn) {
         assertEquals(expected, (int) numberColumn.min());
         assertEquals(expected, (int) numberColumn.max());
     }

@@ -473,4 +473,6 @@ public interface NumericColumn<T> extends CategoricalColumn<T>, NumberMapFunctio
     default ShortColumn asShortColumn() {
         return (ShortColumn) this.copy();
     }
+
+    StringColumn asStringColumn();
 }
