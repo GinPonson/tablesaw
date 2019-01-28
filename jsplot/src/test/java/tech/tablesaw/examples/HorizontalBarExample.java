@@ -21,6 +21,7 @@ import tech.tablesaw.plotly.components.Layout;
 import tech.tablesaw.plotly.traces.BarTrace;
 
 import static tech.tablesaw.aggregate.AggregateFunctions.count;
+import static tech.tablesaw.aggregate.AggregateFunctions.sum;
 
 /**
  *
@@ -29,7 +30,7 @@ public class HorizontalBarExample {
 
     public static void main(String[] args) throws Exception {
         Table table = Table.read().csv("../data/tornadoes_1950-2014.csv");
-        Table s = table.summarize("fatalities", count).by("State");
+        Table s = table.summarize(sum("fatalities")).by("State");
 
         BarTrace trace = BarTrace.builder(
                 s.categoricalColumn(0),

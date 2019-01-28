@@ -23,7 +23,7 @@ public class PivotTableExample {
         key.setName("key");
         filtered.addColumns(key);
 
-        Table finalTable = filtered.pivot("key", "TIME", "Value", mean);
+        Table finalTable = filtered.pivot("key", "TIME", "Value", mean(""));
         // sortDescendingOn puts N/A values first unfortunately, so let's remove them before determining and printing.
         Table existing2017 = finalTable.dropWhere(finalTable.column("2017").isMissing());
 

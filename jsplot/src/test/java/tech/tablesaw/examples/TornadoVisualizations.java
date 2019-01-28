@@ -41,7 +41,7 @@ public class TornadoVisualizations extends AbstractExample {
         DoubleColumn scale = tornadoes.doubleColumn("scale");
         scale.set(scale.isEqualTo(-9), DoubleColumnType.missingValueIndicator());
 
-        Table fatalities1 = tornadoes.summarize("fatalities", sum).by("scale");
+        Table fatalities1 = tornadoes.summarize(sum("fatalities")).by("scale");
 
         Plot.show(HorizontalBarPlot.create(
                 "Total fatalities by scale",
@@ -51,7 +51,7 @@ public class TornadoVisualizations extends AbstractExample {
 
         Plot.show(PiePlot.create("Total fatalities by scale", fatalities1, "scale", "sum [fatalities]"));
 
-        Table fatalities2 = tornadoes.summarize("fatalities", sum).by("state");
+        Table fatalities2 = tornadoes.summarize(sum("fatalities")).by("state");
 
         Plot.show(
                 ParetoPlot.createVertical(
@@ -60,7 +60,7 @@ public class TornadoVisualizations extends AbstractExample {
                         "state",
                         "sum [fatalities]"));
 
-        Table injuries1 = tornadoes.summarize("injuries", mean).by("scale");
+        Table injuries1 = tornadoes.summarize(sum("injuries")).by("scale");
         Plot.show(HorizontalBarPlot.create("Tornado Injuries by Scale", injuries1, "scale", "mean [injuries]"));
         out(injuries1);
     }

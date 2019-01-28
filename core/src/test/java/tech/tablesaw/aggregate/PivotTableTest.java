@@ -21,7 +21,7 @@ public class PivotTableTest {
                 t.categoricalColumn("who"),
                 t.categoricalColumn("date year"),
                 t.numberColumn("approval"),
-                AggregateFunctions.mean);
+                AggregateFunctions.mean(""));
         assertTrue(pivot.columnNames().contains("who"));
         assertTrue(pivot.columnNames().contains("2001"));
         assertTrue(pivot.columnNames().contains("2002"));

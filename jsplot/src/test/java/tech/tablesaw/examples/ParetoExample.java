@@ -30,7 +30,7 @@ public class ParetoExample {
     public static void main(String[] args) throws Exception {
         Table table = Table.read().csv("../data/tornadoes_1950-2014.csv");
         table = table.where(table.numberColumn("Fatalities").isGreaterThan(3));
-        Table t2 = table.summarize("fatalities", sum).by("State");
+        Table t2 = table.summarize(sum("fatalities")).by("State");
 
         t2 = t2.sortDescendingOn(t2.column(1).name());
         Layout layout = Layout.builder().title("Tornado Fatalities by State").build();

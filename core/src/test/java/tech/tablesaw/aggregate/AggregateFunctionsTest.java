@@ -57,8 +57,8 @@ public class AggregateFunctionsTest {
         StringColumn byColumn = table.dateColumn("date").yearQuarter();
         Table result = table.summarize(mean("approval"), earliestDate("date")).by(byColumn);
 
-        //Table result = table.summarize(sum("approval" ), mean("approval")).apply();
         System.out.println(result);
+        //Table result = table.summarize(sum("approval" ), mean("approval")).apply();
         assertEquals(3, result.columnCount());
         assertEquals(13, result.rowCount());
     }

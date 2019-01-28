@@ -55,7 +55,7 @@ public class MurderVisualizations extends AbstractExample {
         murders.addColumns(clearanceRate, unsolved);
 
         Table totals = murders
-                .summarize("murdered", "cleared", "unsolved", sum)
+                .summarize(sum("murdered"), sum("cleared"), sum("unsolved"))
                 .by("year");
 
         Column<?> cum_unsolved = totals.numberColumn("sum [unsolved]").cumSum();
@@ -76,7 +76,7 @@ public class MurderVisualizations extends AbstractExample {
         StringColumn state = murders.stringColumn("state");
         state.set(state.isEqualTo("Rhodes Island"), "Rhode Island");
 
-        Table annualMurders = murders.summarize("murdered", sum).by("year");
+        Table annualMurders = murders.summarize(sum("murdered")).by("year");
 
         Plot.show(LinePlot.create(
                 "Total murders by year",
@@ -85,10 +85,10 @@ public class MurderVisualizations extends AbstractExample {
                 "sum [murdered]"));
 
         Table RI = murders.where(murders.stringColumn("State").isEqualTo("Rhode Island"));
-        Table RI_total = RI.summarize("murdered", sum).by("county");
+        Table RI_total = RI.summarize(sum("murdered")).by("county");
         Plot.show(PiePlot.create("RI murders by county", RI_total, "County", "sum [murdered]"));
 
-        Table murders2 = murders.summarize("murdered", sum).by("state");
+        Table murders2 = murders.summarize(sum("murdered")).by("state");
 
         Plot.show(
                 ParetoPlot.createVertical(

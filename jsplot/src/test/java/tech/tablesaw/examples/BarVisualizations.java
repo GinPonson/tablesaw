@@ -24,6 +24,7 @@ import tech.tablesaw.plotly.api.PiePlot;
 import tech.tablesaw.plotly.api.VerticalBarPlot;
 
 import static tech.tablesaw.aggregate.AggregateFunctions.mean;
+import static tech.tablesaw.aggregate.AggregateFunctions.sum;
 
 /**
  * Usage example using a Tornado data set
@@ -56,7 +57,7 @@ public class BarVisualizations extends AbstractExample {
                 "category",
                 "count"));
 
-        Table ages = murders.summarize("vicAge", mean).by("relationship");
+        Table ages = murders.summarize(sum("vicAge")).by("relationship");
         Plot.show(HorizontalBarPlot.create("Victim Age by relationship to offender", ages, "relationship", "mean [vicAge]"));
         out(ages);
     }
