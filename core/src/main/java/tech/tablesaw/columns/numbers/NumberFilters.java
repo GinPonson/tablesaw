@@ -51,6 +51,14 @@ public interface NumberFilters {
         return eval(isBetweenExclusive, start, end);
     }
 
+    default Selection isBetweenLeftInclusive(double start, Number end) {
+        return eval(isBetweenLeftInclusive, start, end);
+    }
+
+    default Selection isBetweenRightInclusive(double start, Number end) {
+        return eval(isBetweenRightInclusive, start, end);
+    }
+
     default Selection isBetweenInclusive(double start, Number end) {
         return eval(isBetweenInclusive, start, end);
     }

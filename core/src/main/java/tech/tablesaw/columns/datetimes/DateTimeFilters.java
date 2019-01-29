@@ -287,6 +287,16 @@ public interface DateTimeFilters extends Column<LocalDateTime> {
         return isBetweenExcluding(PackedLocalDateTime.pack(lowValue), PackedLocalDateTime.pack(highValue));
     }
 
+    default Selection isBetweenLeftIncluding(LocalDateTime lowValue, LocalDateTime highValue) {
+        return eval(PackedLocalDateTime::isAfter, PackedLocalDateTime.pack(lowValue))
+                .and(eval(PackedLocalDateTime::isOnOrBefore, PackedLocalDateTime.pack(highValue)));
+    }
+
+    default Selection isBetweenRightIncluding(LocalDateTime lowValue, LocalDateTime highValue) {
+        return eval(PackedLocalDateTime::isOnOrAfter, PackedLocalDateTime.pack(lowValue))
+                .and(eval(PackedLocalDateTime::isBefore, PackedLocalDateTime.pack(highValue)));
+    }
+
     default Selection isBetweenIncluding(LocalDateTime lowValue, LocalDateTime highValue) {
         return isBetweenIncluding(PackedLocalDateTime.pack(lowValue), PackedLocalDateTime.pack(highValue));
     }

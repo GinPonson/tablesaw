@@ -37,22 +37,20 @@ public interface NumberPredicates extends Column<Double> {
 
     DoubleBiPredicate isGreaterThan = (valueToTest, valueToCompareAgainst) -> valueToTest > valueToCompareAgainst;
 
-    DoubleRangePredicate isBetweenExclusive = new DoubleRangePredicate() {
-        @Override
-        public boolean test(double valueToTest, double rangeStart, double rangeEnd) {
-            return valueToTest > rangeStart && valueToTest < rangeEnd;
-        }
-    };
+    DoubleRangePredicate isBetweenExclusive = (valueToTest, rangeStart, rangeEnd) ->
+            valueToTest > rangeStart && valueToTest < rangeEnd;
 
-    DoubleRangePredicate isBetweenInclusive = new DoubleRangePredicate() {
-        @Override
-        public boolean test(double valueToTest, double rangeStart, double rangeEnd) {
-            return valueToTest >= rangeStart && valueToTest <= rangeEnd;
-        }
-    };
+    DoubleRangePredicate isBetweenLeftInclusive = (valueToTest, rangeStart, rangeEnd) ->
+            valueToTest > rangeStart && valueToTest <= rangeEnd;
 
-    DoubleBiPredicate isGreaterThanOrEqualTo = (valueToTest, valueToCompareAgainst) -> valueToTest >=
-            valueToCompareAgainst;
+    DoubleRangePredicate isBetweenRightInclusive = (valueToTest, rangeStart, rangeEnd) ->
+            valueToTest >= rangeStart && valueToTest < rangeEnd;
+
+    DoubleRangePredicate isBetweenInclusive = (valueToTest, rangeStart, rangeEnd) ->
+            valueToTest >= rangeStart && valueToTest <= rangeEnd;
+
+    DoubleBiPredicate isGreaterThanOrEqualTo = (valueToTest, valueToCompareAgainst) ->
+            valueToTest >= valueToCompareAgainst;
 
     DoubleBiPredicate isLessThan = (valueToTest, valueToCompareAgainst) -> valueToTest < valueToCompareAgainst;
 

@@ -210,6 +210,16 @@ public interface DateFilters extends Column<LocalDate> {
         return isBetweenExcluding(PackedLocalDate.pack(lowValue), PackedLocalDate.pack(highValue));
     }
 
+    default Selection isBetweenLeftIncluding(LocalDate lowValue, LocalDate highValue) {
+        return eval(PackedLocalDate::isAfter, PackedLocalDate.pack(lowValue))
+                .and(eval(PackedLocalDate::isOnOrBefore, PackedLocalDate.pack(highValue)));
+    }
+
+    default Selection isBetweenRightIncluding(LocalDate lowValue, LocalDate highValue) {
+        return eval(PackedLocalDate::isOnOrAfter, PackedLocalDate.pack(lowValue))
+                .and(eval(PackedLocalDate::isBefore, PackedLocalDate.pack(highValue)));
+    }
+
     default Selection isBetweenIncluding(LocalDate lowValue, LocalDate highValue) {
         return isBetweenIncluding(PackedLocalDate.pack(lowValue), PackedLocalDate.pack(highValue));
     }
