@@ -16,6 +16,7 @@ import tech.tablesaw.columns.AbstractParser;
 import tech.tablesaw.columns.numbers.FloatColumnType;
 import tech.tablesaw.selection.Selection;
 
+import java.math.BigDecimal;
 import java.nio.ByteBuffer;
 import java.util.Comparator;
 import java.util.Iterator;
@@ -302,6 +303,9 @@ public class FloatColumn extends NumberColumn<Float> {
         }
         if (obj instanceof Float) {
             return append((float) obj);
+        }
+        if (obj instanceof BigDecimal) {
+            return append(((BigDecimal) obj).floatValue());
         }
         throw new IllegalArgumentException("Could not append " + obj.getClass());
     }

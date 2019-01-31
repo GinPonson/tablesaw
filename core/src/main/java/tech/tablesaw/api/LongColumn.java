@@ -18,6 +18,7 @@ import tech.tablesaw.columns.numbers.LongColumnType;
 import tech.tablesaw.columns.numbers.NumberColumnFormatter;
 import tech.tablesaw.selection.Selection;
 
+import java.math.BigDecimal;
 import java.nio.ByteBuffer;
 import java.time.Instant;
 import java.time.ZoneOffset;
@@ -365,6 +366,9 @@ public class LongColumn extends NumberColumn<Long> implements CategoricalColumn<
         }
         if (obj instanceof Long) {
             return append((long) obj);
+        }
+        if (obj instanceof BigDecimal) {
+            return append(((BigDecimal) obj).longValue());
         }
         throw new IllegalArgumentException("Could not append " + obj.getClass());
     }
