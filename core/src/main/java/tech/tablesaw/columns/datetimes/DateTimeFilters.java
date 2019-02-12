@@ -4,6 +4,7 @@ import it.unimi.dsi.fastutil.longs.LongArrayList;
 import it.unimi.dsi.fastutil.longs.LongIterator;
 import tech.tablesaw.api.DateTimeColumn;
 import tech.tablesaw.columns.Column;
+import tech.tablesaw.columns.dates.PackedLocalDate;
 import tech.tablesaw.filtering.predicates.LongBiPredicate;
 import tech.tablesaw.selection.BitmapBackedSelection;
 import tech.tablesaw.selection.Selection;
@@ -74,6 +75,11 @@ public interface DateTimeFilters extends Column<LocalDateTime> {
             i++;
         }
         return results;
+    }
+
+    default Selection isEqualTo(LocalDate value) {
+        long packed = PackedLocalDate.pack(value);
+        return eval(isEqualTo, packed);
     }
 
     default Selection isEqualTo(LocalDateTime value) {
