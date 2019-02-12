@@ -99,11 +99,11 @@ public class StringColumn extends AbstractColumn<String>
         }
     }
 
-    private StringColumn(String name) {
+    public StringColumn(String name) {
         super(StringColumnType.instance(), name);
     }
 
-    private StringColumn(String name, String[] strings) {
+    public StringColumn(String name, String[] strings) {
         super(StringColumnType.instance(), name);
         for (String string : strings) {
             append(string);
