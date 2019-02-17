@@ -31,7 +31,7 @@ public class StandardTableSliceGroup extends TableSliceGroup {
 
     private StandardTableSliceGroup(Table original, CategoricalColumn<?>... columns) {
         super(original, splitColumnNames(columns));
-        setSourceTable(getSourceTable());
+        setSourceTable(getSourceTable().sortOn(getSplitColumnNames()));
         splitOn(getSplitColumnNames());
     }
 
