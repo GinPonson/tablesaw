@@ -17,12 +17,10 @@ package tech.tablesaw.table;
 import tech.tablesaw.api.CategoricalColumn;
 import tech.tablesaw.api.Table;
 import tech.tablesaw.columns.Column;
-import tech.tablesaw.selection.BitmapBackedSelection;
-import tech.tablesaw.selection.Selection;
 
 import java.nio.ByteBuffer;
-import java.util.Arrays;
 import java.util.List;
+import java.util.Optional;
 
 /**
  * A group of tables formed by performing splitting operations on an original table
@@ -31,7 +29,7 @@ public class StandardTableSliceGroup extends TableSliceGroup {
 
     private StandardTableSliceGroup(Table original, CategoricalColumn<?>... columns) {
         super(original, splitColumnNames(columns));
-        setSourceTable(getSourceTable().sortOn(getSplitColumnNames()));
+        setSourceTable(getSourceTable());
         splitOn(getSplitColumnNames());
     }
 
@@ -69,12 +67,6 @@ public class StandardTableSliceGroup extends TableSliceGroup {
         List<Column<?>> columns = getSourceTable().columns(columnNames);
         int byteSize = getByteSize(columns);
 
-        byte[] currentKey = null;
-        String currentStringKey = null;
-        TableSlice view;
-
-        Selection selection = new BitmapBackedSelection();
-
         for (int row = 0; row < getSourceTable().rowCount(); row++) {
 
             ByteBuffer byteBuffer = ByteBuffer.allocate(byteSize);
@@ -90,27 +82,21 @@ public class StandardTableSliceGroup extends TableSliceGroup {
                 newStringKey.append(groupKey);
                 byteBuffer.put(c.asBytes(row));
             }
-            byte[] newKey = byteBuffer.array();
-            if (row == 0) {
-                currentKey = newKey;
-                currentStringKey = newStringKey.toString();
-            }
-            if (!Arrays.equals(newKey, currentKey)) {
-                currentKey = newKey;
-                view = new TableSlice(getSourceTable(), selection);
-                view.setName(currentStringKey);
-                currentStringKey = newStringKey.toString();
-                addSlice(view);
-                selection = new BitmapBackedSelection();
-                selection.add(row);
+
+            String currentStringKey = newStringKey.toString();
+
+            final String tableName = currentStringKey;
+            Optional<TableSlice> optional = getSlices().stream()
+                    .filter(slice -> slice.name().equals(tableName))
+                    .findFirst();
+            if (optional.isPresent()) {
+                optional.get().addRow(row);
             } else {
-                selection.add(row);
+                TableSlice view = new TableSlice(getSourceTable());
+                view.setName(currentStringKey);
+                view.addRow(row);
+                addSlice(view);
             }
-        }
-        if (!selection.isEmpty()) {
-            view = new TableSlice(getSourceTable(), selection);
-            view.setName(currentStringKey);
-            addSlice(view);
         }
     }
 }

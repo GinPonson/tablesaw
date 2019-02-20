@@ -47,6 +47,16 @@ public class TableSlice extends Relation implements IntIterable {
         this.table = table;
     }
 
+    public TableSlice(Table table) {
+        this.name = table.name();
+        this.table = table;
+        this.selection = new BitmapBackedSelection();
+    }
+
+    public void addRow(int row) {
+        this.selection.add(row);
+    }
+
     @Override
     public Column<?> column(int columnIndex) {
         return table.column(columnIndex).where(selection);
