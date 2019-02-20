@@ -16,6 +16,7 @@ package tech.tablesaw.io.csv;
 
 import com.google.common.base.Strings;
 import tech.tablesaw.api.ColumnType;
+import tech.tablesaw.io.ReadOptions;
 
 import java.io.File;
 import java.io.InputStream;
@@ -23,59 +24,20 @@ import java.io.Reader;
 import java.time.format.DateTimeFormatter;
 import java.util.Locale;
 
-public class CsvReadOptions {
+public class CsvReadOptions extends ReadOptions {
 
-    // we always have one of these (file, reader, or inputStream)
-    private final File file;
-    private final Reader reader;
-    private final InputStream inputStream;
-
-    private final String tableName;
     private final ColumnType[] columnTypes;
-    private final boolean header;
     private final Character separator;
     private final String lineEnding;
-    private final boolean sample;
-    private final String dateFormat;
-    private final String dateTimeFormat;
-    private final String timeFormat;
-    private final Locale locale;
-    private final String missingValueIndicator;
     private final Integer maxNumberOfColumns;
 
     private CsvReadOptions(CsvReadOptions.Builder builder) {
+	super(builder);
 
-        int sourceCount = 0;
-        if (builder.file != null) sourceCount++;
-        if (builder.reader != null) sourceCount++;
-        if (builder.inputStream != null) sourceCount++;
-
-        if (sourceCount == 0) {
-            throw new IllegalArgumentException("CsvReadOptions Builder configured with no data source");
-        } else if (sourceCount > 1) {
-            throw new IllegalArgumentException("CsvReadOptions Builder configured with more than one data source");
-        }
-
-        file = builder.file;
-        reader = builder.reader;
-        inputStream = builder.inputStream;
-        tableName = builder.tableName;
         columnTypes = builder.columnTypes;
-        header = builder.header;
         separator = builder.separator;
-        sample = builder.sample;
-        dateFormat = builder.dateFormat;
-        timeFormat = builder.timeFormat;
-        dateTimeFormat = builder.dateTimeFormat;
         lineEnding = builder.lineEnding;
-        missingValueIndicator = builder.missingValueIndicator;
         maxNumberOfColumns = builder.maxNumberOfColumns;
-
-        if (builder.locale == null) {
-            locale = Locale.getDefault();
-        } else {
-            locale = builder.locale;
-        }
     }
 
     public static Builder builder(File file) {
@@ -132,10 +94,6 @@ public class CsvReadOptions {
         return columnTypes;
     }
 
-    public boolean header() {
-        return header;
-    }
-
     public Character separator() {
         return separator;
     }
@@ -181,27 +139,15 @@ public class CsvReadOptions {
         return maxNumberOfColumns;
     }
 
-    public static class Builder {
+    public static class Builder extends ReadOptions.Builder {
 
-        private InputStream inputStream;
-        private File file;
-        private Reader reader;
-        private String tableName = "";
-        private boolean header = true;
         private Character separator = ',';
         private String lineEnding;
-        private boolean sample = true;
         private ColumnType[] columnTypes;
-        private String dateFormat;
-        private String timeFormat;
-        private String dateTimeFormat;
-        private Locale locale;
-        private String missingValueIndicator;
         private Integer maxNumberOfColumns = 10_000;
 
         public Builder(File file) {
-            this.file = file;
-            this.tableName = file.getName();
+            super(file);
         }
 
         /**
@@ -213,7 +159,7 @@ public class CsvReadOptions {
          * we skip type detection and can avoid reading the entire file
          */
         public Builder(Reader reader) {
-            this.reader = reader;
+            super(reader);
         }
 
         /**
@@ -225,7 +171,7 @@ public class CsvReadOptions {
          * we skip type detection and can avoid reading the entire file
          */
         public Builder(InputStream stream) {
-            this.inputStream = stream;
+            super(stream);
         }
 
         public Builder tableName(String tableName) {
@@ -249,7 +195,7 @@ public class CsvReadOptions {
         }
 
         public Builder header(boolean header) {
-            this.header = header;
+            super.header(header);
             return this;
         }
 
@@ -272,6 +218,12 @@ public class CsvReadOptions {
             this.sample = sample;
             return this;
         }
+
+        public Builder minimizeColumnSizes(boolean minimize) {
+            this.minimizeColumnSizes = minimize;
+            return this;
+        }
+
 
         public Builder locale(Locale locale) {
             this.locale = locale;

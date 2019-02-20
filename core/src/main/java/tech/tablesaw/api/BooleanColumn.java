@@ -30,7 +30,7 @@ import it.unimi.dsi.fastutil.bytes.ByteSet;
 import it.unimi.dsi.fastutil.ints.IntComparator;
 import tech.tablesaw.columns.AbstractColumn;
 import tech.tablesaw.columns.Column;
-import tech.tablesaw.columns.AbstractParser;
+import tech.tablesaw.columns.AbstractColumnParser;
 import tech.tablesaw.columns.booleans.BooleanColumnType;
 import tech.tablesaw.columns.booleans.BooleanColumnUtils;
 import tech.tablesaw.columns.booleans.BooleanFillers;
@@ -326,7 +326,11 @@ public class BooleanColumn extends AbstractColumn<Boolean> implements BooleanMap
 
     @Override
     public String getUnformattedString(int row) {
-        return String.valueOf(get(row));
+        Boolean b = get(row);
+        if (b == null) {
+            return "";
+        }
+        return String.valueOf(b);
     }
 
     @Override
@@ -365,7 +369,7 @@ public class BooleanColumn extends AbstractColumn<Boolean> implements BooleanMap
     }
 
     @Override
-    public BooleanColumn appendCell(String object, AbstractParser<?> parser) {
+    public BooleanColumn appendCell(String object, AbstractColumnParser<?> parser) {
         return append(parser.parseByte(object));
     }
 

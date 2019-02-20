@@ -13,7 +13,7 @@ import it.unimi.dsi.fastutil.ints.IntArrayList;
 import it.unimi.dsi.fastutil.longs.LongArrayList;
 import it.unimi.dsi.fastutil.shorts.ShortArrayList;
 import tech.tablesaw.columns.Column;
-import tech.tablesaw.columns.AbstractParser;
+import tech.tablesaw.columns.AbstractColumnParser;
 import tech.tablesaw.columns.numbers.DoubleColumnType;
 import tech.tablesaw.columns.numbers.FloatColumnType;
 import tech.tablesaw.columns.numbers.NumberFillers;
@@ -44,6 +44,15 @@ public class DoubleColumn extends NumberColumn<Double> implements NumberFillers<
     protected DoubleColumn(final String name, final DoubleArrayList data) {
         super(DoubleColumnType.instance(), name);
         this.data = data;
+    }
+
+    @Override
+    public String getString(final int row) {
+        final double value = getDouble(row);
+        if (DoubleColumnType.isMissingValue(value)) {
+            return "";
+        }
+        return String.valueOf(printFormatter.format(value));
     }
 
     @Override
@@ -417,7 +426,7 @@ public class DoubleColumn extends NumberColumn<Double> implements NumberFillers<
     }
 
     @Override
-    public DoubleColumn appendCell(final String value, AbstractParser<?> parser) {
+    public DoubleColumn appendCell(final String value, AbstractColumnParser<?> parser) {
         try {
             return append(parser.parseDouble(value));
         } catch (final NumberFormatException e) {

@@ -10,10 +10,9 @@ import it.unimi.dsi.fastutil.shorts.ShortComparator;
 import it.unimi.dsi.fastutil.shorts.ShortListIterator;
 import it.unimi.dsi.fastutil.shorts.ShortOpenHashSet;
 import it.unimi.dsi.fastutil.shorts.ShortSet;
+import tech.tablesaw.columns.AbstractColumnParser;
 import tech.tablesaw.columns.Column;
-import tech.tablesaw.columns.AbstractParser;
 import tech.tablesaw.columns.numbers.DoubleColumnType;
-import tech.tablesaw.columns.numbers.IntColumnType;
 import tech.tablesaw.columns.numbers.NumberColumnFormatter;
 import tech.tablesaw.columns.numbers.ShortColumnType;
 import tech.tablesaw.selection.Selection;
@@ -232,6 +231,15 @@ public class ShortColumn extends NumberColumn<Short> implements CategoricalColum
     }
 
     @Override
+    public String getString(final int row) {
+        final short value = getShort(row);
+        if (ShortColumnType.isMissingValue(value)) {
+            return "";
+        }
+        return String.valueOf(printFormatter.format(value));
+    }
+
+    @Override
     public ShortColumn append(Column<Short> column, int row) {
         Preconditions.checkArgument(column.type() == this.type());
         return append(((ShortColumn) column).getShort(row));
@@ -344,7 +352,7 @@ public class ShortColumn extends NumberColumn<Short> implements CategoricalColum
     }
 
     @Override
-    public ShortColumn appendCell(final String value, AbstractParser<?> parser) {
+    public ShortColumn appendCell(final String value, AbstractColumnParser<?> parser) {
         try {
             return append(parser.parseShort(value));
         } catch (final NumberFormatException e) {
@@ -354,7 +362,7 @@ public class ShortColumn extends NumberColumn<Short> implements CategoricalColum
 
     @Override
     public String getUnformattedString(final int row) {
-        final short value = getShort(row);
+        final int value = getInt(row);
         if (ShortColumnType.isMissingValue(value)) {
             return "";
         }

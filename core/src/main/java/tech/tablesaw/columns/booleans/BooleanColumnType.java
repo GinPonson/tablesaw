@@ -5,6 +5,7 @@ import tech.tablesaw.api.ColumnType;
 import tech.tablesaw.columns.AbstractColumnType;
 import tech.tablesaw.columns.AbstractParser;
 import tech.tablesaw.io.csv.CsvReadOptions;
+import tech.tablesaw.io.ReadOptions;
 
 public class BooleanColumnType extends AbstractColumnType {
 
@@ -37,7 +38,7 @@ public class BooleanColumnType extends AbstractColumnType {
     }
 
     @Override
-    public BooleanParser customParser(CsvReadOptions readOptions) {
+    public BooleanParser customParser(ReadOptions readOptions) {
         return new BooleanParser(this, readOptions);
     }
 

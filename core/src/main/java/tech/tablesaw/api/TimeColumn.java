@@ -23,7 +23,7 @@ import it.unimi.dsi.fastutil.ints.IntOpenHashSet;
 import it.unimi.dsi.fastutil.ints.IntSet;
 import tech.tablesaw.columns.AbstractColumn;
 import tech.tablesaw.columns.Column;
-import tech.tablesaw.columns.AbstractParser;
+import tech.tablesaw.columns.AbstractColumnParser;
 import tech.tablesaw.columns.times.PackedLocalTime;
 import tech.tablesaw.columns.times.TimeColumnFormatter;
 import tech.tablesaw.columns.times.TimeColumnType;
@@ -39,10 +39,8 @@ import java.time.format.DateTimeFormatter;
 import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.Comparator;
-import java.util.HashSet;
 import java.util.Iterator;
 import java.util.List;
-import java.util.Set;
 import java.util.function.Consumer;
 import java.util.function.Function;
 import java.util.function.Predicate;
@@ -365,7 +363,7 @@ public class TimeColumn extends AbstractColumn<LocalTime>
     }
 
     @Override
-    public TimeColumn appendCell(String object, AbstractParser<?> parser) {
+    public TimeColumn appendCell(String object, AbstractColumnParser<?> parser) {
         return appendObj(parser.parse(object));
     }
 
@@ -502,15 +500,6 @@ public class TimeColumn extends AbstractColumn<LocalTime>
 
     public IntIterator intIterator() {
         return data.iterator();
-    }
-
-    Set<LocalTime> asSet() {
-        Set<LocalTime> times = new HashSet<>();
-        TimeColumn unique = unique();
-        for (LocalTime t : unique) {
-            times.add(t);
-        }
-        return times;
     }
 
     public boolean contains(LocalTime time) {

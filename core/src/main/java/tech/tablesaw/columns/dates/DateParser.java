@@ -2,8 +2,8 @@ package tech.tablesaw.columns.dates;
 
 import com.google.common.collect.Lists;
 import tech.tablesaw.api.ColumnType;
-import tech.tablesaw.columns.AbstractParser;
-import tech.tablesaw.io.csv.CsvReadOptions;
+import tech.tablesaw.columns.AbstractColumnParser;
+import tech.tablesaw.io.ReadOptions;
 
 import java.time.LocalDate;
 import java.time.format.DateTimeFormatter;
@@ -11,7 +11,7 @@ import java.time.format.DateTimeFormatterBuilder;
 import java.time.format.DateTimeParseException;
 import java.util.Locale;
 
-public class DateParser extends AbstractParser<LocalDate> {
+public class DateParser extends AbstractColumnParser<LocalDate> {
 
     // Formats that we accept in parsing dates from strings
     private static final DateTimeFormatter dtf1 = DateTimeFormatter.ofPattern("yyyyMMdd");
@@ -61,7 +61,7 @@ public class DateParser extends AbstractParser<LocalDate> {
     private Locale locale = Locale.getDefault();
     private DateTimeFormatter formatter = DEFAULT_FORMATTER;
 
-    public DateParser(ColumnType type, CsvReadOptions readOptions) {
+    public DateParser(ColumnType type, ReadOptions readOptions) {
         super(type);
         DateTimeFormatter readCsvFormatter = readOptions.dateFormatter();
         if (readCsvFormatter != null) {

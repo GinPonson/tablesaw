@@ -5,6 +5,7 @@ import tech.tablesaw.api.DoubleColumn;
 import tech.tablesaw.columns.AbstractColumnType;
 import tech.tablesaw.columns.AbstractParser;
 import tech.tablesaw.io.csv.CsvReadOptions;
+import tech.tablesaw.io.ReadOptions;
 
 public class DoubleColumnType extends AbstractColumnType {
 
@@ -12,15 +13,15 @@ public class DoubleColumnType extends AbstractColumnType {
 
     public static final DoubleParser DEFAULT_PARSER = new DoubleParser(ColumnType.DOUBLE);
 
+    private static DoubleColumnType INSTANCE =
+            new DoubleColumnType(BYTE_SIZE, "DOUBLE", "Double");
+
     public static DoubleColumnType instance() {
         if (INSTANCE == null) {
             INSTANCE = new DoubleColumnType(BYTE_SIZE, "DOUBLE", "Double");
         }
         return INSTANCE;
     }
-
-    private static DoubleColumnType INSTANCE =
-            new DoubleColumnType(BYTE_SIZE, "DOUBLE", "Double");
 
     private DoubleColumnType(int byteSize, String name, String printerFriendlyName) {
         super(byteSize, name, printerFriendlyName);
@@ -32,7 +33,7 @@ public class DoubleColumnType extends AbstractColumnType {
     }
 
     @Override
-    public DoubleParser customParser(CsvReadOptions options) {
+    public DoubleParser customParser(ReadOptions options) {
         return new DoubleParser(this, options);
     }
 
