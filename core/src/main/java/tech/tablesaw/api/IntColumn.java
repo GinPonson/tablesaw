@@ -333,8 +333,8 @@ public class IntColumn extends NumberColumn<Integer> implements CategoricalColum
         if (obj instanceof Integer) {
             return append((int) obj);
         }
-        if (obj instanceof BigDecimal) {
-            return append(((BigDecimal) obj).intValue());
+        if (obj instanceof Number) {
+            return append(((Number) obj).intValue());
         }
         throw new IllegalArgumentException("Could not append " + obj.getClass());
     }
