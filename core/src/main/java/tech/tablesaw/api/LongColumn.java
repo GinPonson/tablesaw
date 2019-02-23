@@ -364,11 +364,11 @@ public class LongColumn extends NumberColumn<Long> implements CategoricalColumn<
         if (obj == null) {
             return appendMissing();
         }
-        if (obj instanceof Long) {
-            return append((long) obj);
+        if (obj instanceof String) {
+            return appendCell((String) obj);
         }
-        if (obj instanceof BigDecimal) {
-            return append(((BigDecimal) obj).longValue());
+        if (obj instanceof Number) {
+            return append(((Number) obj).longValue());
         }
         throw new IllegalArgumentException("Could not append " + obj.getClass());
     }

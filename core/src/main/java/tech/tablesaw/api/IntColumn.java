@@ -330,8 +330,8 @@ public class IntColumn extends NumberColumn<Integer> implements CategoricalColum
         if (obj == null) {
             return appendMissing();
         }
-        if (obj instanceof Integer) {
-            return append((int) obj);
+        if (obj instanceof String) {
+            return appendCell((String) obj);
         }
         if (obj instanceof Number) {
             return append(((Number) obj).intValue());

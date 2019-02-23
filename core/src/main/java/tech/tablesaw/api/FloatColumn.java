@@ -301,11 +301,11 @@ public class FloatColumn extends NumberColumn<Float> {
         if (obj == null) {
             return appendMissing();
         }
-        if (obj instanceof Float) {
-            return append((float) obj);
+        if (obj instanceof String) {
+            return appendCell((String) obj);
         }
-        if (obj instanceof BigDecimal) {
-            return append(((BigDecimal) obj).floatValue());
+        if (obj instanceof Number) {
+            return append(((Number) obj).floatValue());
         }
         throw new IllegalArgumentException("Could not append " + obj.getClass());
     }

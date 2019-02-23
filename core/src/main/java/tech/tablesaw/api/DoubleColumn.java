@@ -398,11 +398,11 @@ public class DoubleColumn extends NumberColumn<Double> implements NumberFillers<
         if (obj == null) {
             return appendMissing();
         }
-        if (obj instanceof Double) {
-            return append((double) obj);
+        if (obj instanceof String) {
+            return appendCell((String) obj);
         }
-        if (obj instanceof BigDecimal) {
-            return append(((BigDecimal) obj).doubleValue());
+        if (obj instanceof Number) {
+            return append(((Number) obj).doubleValue());
         }
         throw new IllegalArgumentException("Could not append " + obj.getClass());
     }
