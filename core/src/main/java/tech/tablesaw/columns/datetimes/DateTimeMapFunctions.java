@@ -212,7 +212,7 @@ public interface DateTimeMapFunctions extends Column<LocalDateTime> {
             if (DateTimeColumn.valueIsMissing(c1)) {
                 newColumn.append(StringColumnType.missingValueIndicator());
             } else {
-                String yq = String.valueOf(getYear(c1)) + "-" + getQuarter(c1);
+                String yq = String.valueOf(getYear(c1)) + "-" + getQuarter(c1) + "季";
                 newColumn.append(yq);
             }
         }
@@ -308,7 +308,7 @@ public interface DateTimeMapFunctions extends Column<LocalDateTime> {
             } else {
                 String ym = String.valueOf(getYear(c1));
                 ym = ym + "-" + Strings.padStart(
-                        String.valueOf(getWeekOfYear(c1)), 2, '0');
+                        String.valueOf(getWeekOfYear(c1)), 2, '0') + "周";
                 newColumn.append(ym);
             }
         }
