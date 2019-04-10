@@ -14,21 +14,12 @@
 
 package tech.tablesaw.examples;
 
-import static tech.tablesaw.aggregate.AggregateFunctions.max;
-import static tech.tablesaw.aggregate.AggregateFunctions.mean;
-import static tech.tablesaw.aggregate.AggregateFunctions.min;
-import static tech.tablesaw.aggregate.AggregateFunctions.range;
-
 import tech.tablesaw.aggregate.CrossTab;
-import tech.tablesaw.api.BooleanColumn;
-import tech.tablesaw.api.ColumnType;
-import tech.tablesaw.api.DateColumn;
-import tech.tablesaw.api.IntColumn;
-import tech.tablesaw.api.NumberColumn;
-import tech.tablesaw.api.StringColumn;
-import tech.tablesaw.api.Table;
+import tech.tablesaw.api.*;
 import tech.tablesaw.columns.numbers.NumberColumnFormatter;
 import tech.tablesaw.selection.Selection;
+
+import static tech.tablesaw.aggregate.AggregateFunctions.*;
 
 /**
  * Example code for:
@@ -119,10 +110,10 @@ public class Example1 extends AbstractExample {
         out(highRatings.first(10));
 
         // Summarizing
-        Table summary = table1.summarize("approval", range).by("who");
+        Table summary = table1.summarize(range("approval")).by("who");
         out(summary);
 
-        Table summary2 = table1.summarize("approval", mean, max, min).apply();
+        Table summary2 = table1.summarize(mean("approval"), max("approval"), min("approval")).apply();
         out(summary2);
 
         StringColumn month = date.month();

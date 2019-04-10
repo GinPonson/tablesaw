@@ -1,9 +1,8 @@
 package tech.tablesaw.columns.numbers;
 
 import tech.tablesaw.api.ShortColumn;
+import tech.tablesaw.columns.AbstractColumnParser;
 import tech.tablesaw.columns.AbstractColumnType;
-import tech.tablesaw.columns.AbstractParser;
-import tech.tablesaw.io.csv.CsvReadOptions;
 import tech.tablesaw.io.ReadOptions;
 
 public class ShortColumnType extends AbstractColumnType {
@@ -36,7 +35,7 @@ public class ShortColumnType extends AbstractColumnType {
     }
 
     @Override
-    public AbstractParser<?> defaultParser() {
+    public AbstractColumnParser<?> defaultParser() {
         return new ShortParser(this);
     }
 

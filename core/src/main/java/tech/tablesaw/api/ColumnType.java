@@ -7,11 +7,7 @@ import tech.tablesaw.columns.SkipColumnType;
 import tech.tablesaw.columns.booleans.BooleanColumnType;
 import tech.tablesaw.columns.dates.DateColumnType;
 import tech.tablesaw.columns.datetimes.DateTimeColumnType;
-import tech.tablesaw.columns.numbers.DoubleColumnType;
-import tech.tablesaw.columns.numbers.FloatColumnType;
-import tech.tablesaw.columns.numbers.IntColumnType;
-import tech.tablesaw.columns.numbers.LongColumnType;
-import tech.tablesaw.columns.numbers.ShortColumnType;
+import tech.tablesaw.columns.numbers.*;
 import tech.tablesaw.columns.strings.StringColumnType;
 import tech.tablesaw.columns.strings.TextColumnType;
 import tech.tablesaw.columns.times.TimeColumnType;
@@ -66,7 +62,7 @@ public interface ColumnType {
 
     AbstractColumnParser<?> customParser(ReadOptions options);
 
-    AbstractParser<?> defaultParser();
+    AbstractColumnParser<?> defaultParser();
 
     default boolean compare(int rowNumber, Column<?> temp, Column<?> original) {
         return original.get(rowNumber).equals(temp.get(temp.size() - 1));

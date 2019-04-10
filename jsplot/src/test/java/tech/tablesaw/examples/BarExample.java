@@ -42,7 +42,7 @@ public class BarExample {
         IntColumn scale = table.intColumn("scale");
         scale.set(scale.isLessThan(0), IntColumnType.missingValueIndicator());
 
-        Table summaryTable = table.summarize("fatalities", "log injuries", sum).by("Scale");
+        Table summaryTable = table.summarize(sum("fatalities"), sum("log injuries")).by("Scale");
 
         Plot.show(HorizontalBarPlot.create("Tornado Impact", summaryTable, "scale", Layout.BarMode.STACK,"Sum [Fatalities]", "Sum [log injuries]"));
 

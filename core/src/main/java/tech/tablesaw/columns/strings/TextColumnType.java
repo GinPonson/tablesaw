@@ -2,9 +2,8 @@ package tech.tablesaw.columns.strings;
 
 import tech.tablesaw.api.ColumnType;
 import tech.tablesaw.api.TextColumn;
+import tech.tablesaw.columns.AbstractColumnParser;
 import tech.tablesaw.columns.AbstractColumnType;
-import tech.tablesaw.columns.AbstractParser;
-import tech.tablesaw.io.csv.CsvReadOptions;
 import tech.tablesaw.io.ReadOptions;
 
 public class TextColumnType extends AbstractColumnType {
@@ -36,7 +35,7 @@ public class TextColumnType extends AbstractColumnType {
     }
 
     @Override
-    public AbstractParser<?> defaultParser() {
+    public AbstractColumnParser<?> defaultParser() {
         return new StringParser(this);
     }
 

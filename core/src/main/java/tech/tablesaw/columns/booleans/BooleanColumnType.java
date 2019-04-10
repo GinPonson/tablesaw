@@ -2,8 +2,8 @@ package tech.tablesaw.columns.booleans;
 
 import tech.tablesaw.api.BooleanColumn;
 import tech.tablesaw.api.ColumnType;
+import tech.tablesaw.columns.AbstractColumnParser;
 import tech.tablesaw.columns.AbstractColumnType;
-import tech.tablesaw.columns.AbstractParser;
 import tech.tablesaw.io.ReadOptions;
 
 public class BooleanColumnType extends AbstractColumnType {
@@ -42,7 +42,7 @@ public class BooleanColumnType extends AbstractColumnType {
     }
 
     @Override
-    public AbstractParser<?> defaultParser() {
+    public AbstractColumnParser<?> defaultParser() {
         return new BooleanParser(this);
     }
 

@@ -31,7 +31,7 @@ public class BarPieAndParetoExample {
 
         // Sum the number of fatalities from each tornado, grouping by scale
         Table fatalities1 =
-                tornadoes.summarize("fatalities", sum).by("scale");
+                tornadoes.summarize(sum("fatalities")).by("scale");
 
         // Plot
         Plot.show(
@@ -42,7 +42,7 @@ public class BarPieAndParetoExample {
                         "sum [fatalities]"));		// numeric column name
 
         // Plot the mean injuries rather than a sum.
-        Table injuries1 = tornadoes.summarize("injuries", mean).by("scale");
+        Table injuries1 = tornadoes.summarize(mean("injuries")).by("scale");
 
         Plot.show(
                 HorizontalBarPlot.create("Average number of tornado injuries by scale",
@@ -54,7 +54,7 @@ public class BarPieAndParetoExample {
                 PiePlot.create("fatalities by scale", fatalities1, "scale", "sum [fatalities]"));
 
         // PARETO PLOT
-        Table t2 = tornadoes.summarize("fatalities", sum).by("State");
+        Table t2 = tornadoes.summarize(sum("fatalities")).by("State");
 
         t2 = t2.sortDescendingOn(t2.column(1).name());
         Layout layout = Layout.builder().title("Tornado Fatalities by State").build();
