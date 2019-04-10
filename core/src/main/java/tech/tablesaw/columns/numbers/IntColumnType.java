@@ -5,6 +5,7 @@ import tech.tablesaw.api.IntColumn;
 import tech.tablesaw.columns.AbstractColumnType;
 import tech.tablesaw.columns.AbstractParser;
 import tech.tablesaw.io.csv.CsvReadOptions;
+import tech.tablesaw.io.ReadOptions;
 
 public class IntColumnType extends AbstractColumnType {
 
@@ -31,7 +32,7 @@ public class IntColumnType extends AbstractColumnType {
     }
 
     @Override
-    public IntParser customParser(CsvReadOptions options) {
+    public IntParser customParser(ReadOptions options) {
         return new IntParser(this, options);
     }
 

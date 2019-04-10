@@ -4,6 +4,7 @@ import tech.tablesaw.api.ShortColumn;
 import tech.tablesaw.columns.AbstractColumnType;
 import tech.tablesaw.columns.AbstractParser;
 import tech.tablesaw.io.csv.CsvReadOptions;
+import tech.tablesaw.io.ReadOptions;
 
 public class ShortColumnType extends AbstractColumnType {
 
@@ -30,7 +31,7 @@ public class ShortColumnType extends AbstractColumnType {
     }
 
     @Override
-    public ShortParser customParser(CsvReadOptions options) {
+    public ShortParser customParser(ReadOptions options) {
         return new ShortParser(this, options);
     }
 

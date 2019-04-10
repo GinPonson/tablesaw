@@ -15,11 +15,11 @@
 package tech.tablesaw.api;
 
 import com.google.common.collect.Lists;
-import org.junit.Assert;
-import org.junit.Before;
-import org.junit.Test;
+import org.junit.jupiter.api.BeforeEach;
+import org.junit.jupiter.api.Test;
 import tech.tablesaw.columns.Column;
 import tech.tablesaw.columns.dates.PackedLocalDate;
+import tech.tablesaw.io.csv.CsvReadOptions;
 
 import java.io.IOException;
 import java.time.LocalDate;
@@ -31,12 +31,13 @@ import java.util.concurrent.atomic.AtomicInteger;
 import java.util.function.Consumer;
 import java.util.function.Predicate;
 
-import static org.junit.Assert.assertArrayEquals;
-import static org.junit.Assert.assertEquals;
-import static org.junit.Assert.assertFalse;
-import static org.junit.Assert.assertNotNull;
-import static org.junit.Assert.assertSame;
-import static org.junit.Assert.assertTrue;
+import static org.junit.jupiter.api.Assertions.assertArrayEquals;
+import static org.junit.jupiter.api.Assertions.assertEquals;
+import static org.junit.jupiter.api.Assertions.assertFalse;
+import static org.junit.jupiter.api.Assertions.assertNotNull;
+import static org.junit.jupiter.api.Assertions.assertSame;
+import static org.junit.jupiter.api.Assertions.assertThrows;
+import static org.junit.jupiter.api.Assertions.assertTrue;
 import static tech.tablesaw.aggregate.AggregateFunctions.mean;
 import static tech.tablesaw.aggregate.AggregateFunctions.stdDev;
 
@@ -50,7 +51,7 @@ public class TableTest {
     private DoubleColumn f1 =  DoubleColumn.create("f1");
     private DoubleColumn numberColumn =  DoubleColumn.create("d1");
 
-    @Before
+    @BeforeEach
     public void setUp() {
         table = Table.create("t");
         table.addColumns(f1);
@@ -62,13 +63,23 @@ public class TableTest {
         Table result = table.summarize(mean("Injuries"), stdDev("Injuries")).by("State");
         assertEquals(49, result.rowCount());
         assertEquals(3, result.columnCount());
-        Assert.assertEquals("4.580805569368455", result.column(1).getString(0));
+        assertEquals("4.580805569368455", result.column(1).getString(0));
     }
 
     @Test
     public void testColumn() {
         Column<?> column1 = table.column(0);
         assertNotNull(column1);
+    }
+
+    public void testColumnSizeCheck() {
+        assertThrows(IllegalArgumentException.class, () -> {
+            double[] a = {3, 4};
+            double[] b = {3, 4, 5};
+            Table.create("test",
+                    DoubleColumn.create("a", a),
+                    DoubleColumn.create("b", b));
+        });
     }
 
     @Test
@@ -206,7 +217,7 @@ public class TableTest {
 
     @Test
     public void testDoWithEachRow() throws Exception {
-        Table t = Table.read().csv("../data/bush.csv").first(10);
+        Table t = Table.read().csv(CsvReadOptions.builder("../data/bush.csv").minimizeColumnSizes(true)).first(10);
         Short[] ratingsArray = {53, 58};
         List<Short> ratings = Lists.asList((short) 52, ratingsArray);
 
@@ -220,7 +231,7 @@ public class TableTest {
 
     @Test
     public void testDoWithEachRow2() throws Exception {
-        Table t = Table.read().csv("../data/bush.csv");
+        Table t = Table.read().csv(CsvReadOptions.builder("../data/bush.csv").minimizeColumnSizes(true));
         int dateTarget = PackedLocalDate.pack(LocalDate.of(2002, 1, 1));
         double ratingTarget = 75;
         AtomicInteger count = new AtomicInteger(0);
@@ -236,7 +247,7 @@ public class TableTest {
 
     @Test
     public void testDetect() throws Exception {
-        Table t = Table.read().csv("../data/bush.csv");
+        Table t = Table.read().csv(CsvReadOptions.builder("../data/bush.csv").minimizeColumnSizes(true));
         int dateTarget = PackedLocalDate.pack(LocalDate.of(2002, 1, 1));
         double ratingTarget = 75;
         Predicate<Row> doable = row ->
@@ -258,14 +269,14 @@ public class TableTest {
 
     @Test
     public void testPairs() throws Exception {
-        Table t = Table.read().csv("../data/bush.csv");
+        Table t = Table.read().csv(CsvReadOptions.builder("../data/bush.csv").minimizeColumnSizes(true));
         PairChild pairs = new PairChild();
         t.doWithRows(pairs);
     }
 
     @Test
     public void testPairs2() throws Exception {
-        Table t = Table.read().csv("../data/bush.csv");
+        Table t = Table.read().csv(CsvReadOptions.builder("../data/bush.csv").minimizeColumnSizes(true));
 
         Table.Pairs runningAvg =  new Table.Pairs() {
 
@@ -288,8 +299,38 @@ public class TableTest {
     }
 
     @Test
+    public void stepWithRows() throws Exception {
+        Table t = Table.read()
+                .csv(CsvReadOptions.builder("../data/bush.csv").minimizeColumnSizes(true))
+                .first(6);
+
+        final int sum1 = (int) t.shortColumn("approval").sum();
+
+        RowConsumer rowConsumer = new RowConsumer();
+        t.stepWithRows(rowConsumer, 3);
+        assertEquals(sum1, rowConsumer.getSum());
+
+    }
+
+    private static class RowConsumer implements Consumer<Row[]> {
+
+        private int sum = 0;
+
+        public int getSum() {
+            return sum;
+        }
+
+        @Override
+        public void accept(Row[] rows) {
+            for (int i = 0; i < 3; i++) {
+                sum += rows[i].getShort("approval");
+            }
+        }
+    }
+
+    @Test
     public void testRollWithNrows2() throws Exception {
-        Table t = Table.read().csv("../data/bush.csv").first(4);
+        Table t = Table.read().csv(CsvReadOptions.builder("../data/bush.csv").minimizeColumnSizes(true)).first(4);
         ShortColumn approval = t.shortColumn("approval");
 
         List<Integer> sums = new ArrayList<>();
@@ -364,40 +405,45 @@ public class TableTest {
         table.addColumns(column);
         DoubleColumn first = f1.emptyCopy();
         DoubleColumn second = column.emptyCopy();
-        int firstColumnSize = populateColumn(first);
-        int secondColumnSize = populateColumn(second);
+        int rowCount = RANDOM.nextInt(ROWS_BOUNDARY);
+        int firstColumnSize = populateColumn(first, rowCount);
+        int secondColumnSize = populateColumn(second, rowCount);
         Table tableToAppend = Table.create("populated", first, second);
         table.append(tableToAppend);
         assertTableColumnSize(table, f1, firstColumnSize);
         assertTableColumnSize(table, column, secondColumnSize);
     }
 
-    @Test(expected = NullPointerException.class)
     public void testAppendNull() {
-        table.append(null);
+        assertThrows(NullPointerException.class, () -> {
+            table.append(null);
+        });
     }
 
-    @Test(expected = IllegalStateException.class)
     public void testAppendTableWithNonExistingColumns() {
-        Table tableToAppend = Table.create("wrong", numberColumn);
-        table.append(tableToAppend);
+        assertThrows(IllegalStateException.class, () -> {
+            Table tableToAppend = Table.create("wrong", numberColumn);
+            table.append(tableToAppend);
+        });
     }
 
-    @Test(expected = IllegalStateException.class)
     public void testAppendTableWithAnotherColumnName() {
-        DoubleColumn column =  DoubleColumn.create("42");
-        Table tableToAppend = Table.create("wrong", column);
-        table.append(tableToAppend);
+        assertThrows(IllegalStateException.class, () -> {
+            DoubleColumn column =  DoubleColumn.create("42");
+            Table tableToAppend = Table.create("wrong", column);
+            table.append(tableToAppend);
+        });
     }
 
-    @Test(expected = IllegalStateException.class)
     public void testAppendTableWithDifferentShape() {
-        DoubleColumn column =  DoubleColumn.create("e1");
-        table.addColumns(column);
-        Table tableToAppend = Table.create("different", column);
-        assertEquals(2, table.columns().size());
-        assertEquals(1, tableToAppend.columns().size());
-        table.append(tableToAppend);
+        assertThrows(IllegalStateException.class, () -> {
+    	    DoubleColumn column =  DoubleColumn.create("e1");
+            table.addColumns(column);
+            Table tableToAppend = Table.create("different", column);
+            assertEquals(2, table.columns().size());
+            assertEquals(1, tableToAppend.columns().size());
+            table.append(tableToAppend);
+        });
     }
 
     @Test
@@ -440,6 +486,10 @@ public class TableTest {
 
     private int populateColumn(DoubleColumn floatColumn) {
         int rowsCount = RANDOM.nextInt(ROWS_BOUNDARY);
+        return populateColumn(floatColumn, rowsCount);
+    }
+
+    private int populateColumn(DoubleColumn floatColumn, int rowsCount) {
         for (int i = 0; i < rowsCount; i++) {
             floatColumn.append(RANDOM.nextFloat());
         }
@@ -465,7 +515,7 @@ public class TableTest {
 
     @Test
     public void testRowSort() throws Exception {
-        Table bush = Table.read().csv("../data/bush.csv");
+        Table bush = Table.read().csv(CsvReadOptions.builder("../data/bush.csv").minimizeColumnSizes(true));
 
         Comparator<Row> rowComparator = Comparator.comparingDouble(o -> o.getShort("approval"));
 

@@ -25,11 +25,10 @@ import java.util.function.DoubleBinaryOperator;
 import java.util.function.DoubleFunction;
 import java.util.function.DoublePredicate;
 
-import static tech.tablesaw.aggregate.AggregateFunctions.*;
-import static tech.tablesaw.aggregate.AggregateFunctions.sum;
-import static tech.tablesaw.columns.numbers.NumberPredicates.*;
+import static tech.tablesaw.columns.numbers.NumberPredicates.isMissing;
+import static tech.tablesaw.columns.numbers.NumberPredicates.isNotMissing;
 
-public interface NumericColumn<T> extends CategoricalColumn<T>, NumberMapFunctions, NumberFilters {
+public interface NumericColumn<T> extends Column<T>, NumberMapFunctions, NumberFilters {
 
     @Override
     default boolean isEmpty() {

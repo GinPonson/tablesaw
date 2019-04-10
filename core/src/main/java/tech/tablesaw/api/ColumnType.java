@@ -1,7 +1,7 @@
 package tech.tablesaw.api;
 
 import com.google.common.base.Preconditions;
-import tech.tablesaw.columns.AbstractParser;
+import tech.tablesaw.columns.AbstractColumnParser;
 import tech.tablesaw.columns.Column;
 import tech.tablesaw.columns.SkipColumnType;
 import tech.tablesaw.columns.booleans.BooleanColumnType;
@@ -15,7 +15,7 @@ import tech.tablesaw.columns.numbers.ShortColumnType;
 import tech.tablesaw.columns.strings.StringColumnType;
 import tech.tablesaw.columns.strings.TextColumnType;
 import tech.tablesaw.columns.times.TimeColumnType;
-import tech.tablesaw.io.csv.CsvReadOptions;
+import tech.tablesaw.io.ReadOptions;
 
 import java.util.HashMap;
 import java.util.Map;
@@ -64,7 +64,7 @@ public interface ColumnType {
 
     String getPrinterFriendlyName();
 
-    AbstractParser<?> customParser(CsvReadOptions options);
+    AbstractColumnParser<?> customParser(ReadOptions options);
 
     AbstractParser<?> defaultParser();
 

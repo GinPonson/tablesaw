@@ -3,17 +3,17 @@
 Importing data
 ==============
 
-The most common way to get data into Tablesaw is from a CSV file, and the simplest way to do that is:
+To minimize the size of the core library, the readers are packaged in separate modules except for the CSV reader. You will need to include them in your project to use the `Table.read()` methods.
 
-```Java
-Table t = Table.read().csv("myFile.csv");
-```
-
-You can also load data from a relational database using a JDBC ResultSet. This option is described below, along with variations on the read().csv() syntax, and some helpful utilities.
+See the Javadoc for [DataFrameReader](http://static.javadoc.io/tech.tablesaw/tablesaw-core/0.31.0/tech/tablesaw/io/DataFrameReader.html) for a listing of all the `Table.read()` methods that are available.
 
 ## Reading CSV files
 
-As shown above, the easiest way to load data from a CSV file on disk is to use ```Table t = Table.read().csv(aFileName);```.
+The easiest way to load data from a CSV file on disk is to use:
+
+```Java
+Table t = Table.read().file("myFile.csv");
+```
 
 This method supplies defaults for everything but the filename. We assume that columns are separated by commas, and that the file has a header row, which we use to create column names. If one or more defaults are incorrect, you can customize the loading process using the class CsvReadOptions. 
 
@@ -28,7 +28,7 @@ CsvReadOptionsBuilder builder =
 
 CsvReadOptions options = builder.build();
 
-Table t1 = Table.read().csv(options);
+Table t1 = Table.read().usingOptions(options);
 ```
 
 The _header_ option indicates whether or not there’s a one-line header row at the top of the file. If *header* is false, we treat all the rows as data.
@@ -51,7 +51,7 @@ By a little help, we mean you could specify the types explicitly, by passing an 
 
 ```Java
 ColumnType[] types = {LOCAL_DATE, INTEGER, FLOAT, FLOAT, CATEGORY};
-Table t = Table.read().csv(CsvReadOptions
+Table t = Table.read().usingOptions(CsvReadOptions
     .builder("myFile.csv")
     .columnTypes(types));
 ```
@@ -86,7 +86,7 @@ Another advantage to specifying the column types is that you can skip some if yo
 
 ```Java
 ColumnType[] types = {SKIP, INTEGER, FLOAT, FLOAT, SKIP};
-Table t = Table.read().csv(CsvReadOptions
+Table t = Table.read().usingOptions(CsvReadOptions
     .builder("myFile.csv")
     .columnTypes(types));
 ```
@@ -102,7 +102,7 @@ When one of these strings is encountered, it is replaced by a type-specific miss
 If your file has an unsupported missing value indicator (e.g. "-"), you can provide it in the options builder.
 
 ```Java
-Table t = Table.read().csv(CsvReadOptions
+Table t = Table.read().usingOptions(CsvReadOptions
     .builder("myFile.csv")
     .missingValueIndicator("-"));
 ```
@@ -114,7 +114,7 @@ Importing dates and times can be tricky because of Locales and the wide variety 
 The second is to specify the precise format for each temporal column.
 
 ```Java
-Table t = Table.read().csv(CsvReadOptions
+Table t = Table.read().usingOptions(CsvReadOptions
     .builder("myFile.csv")
     .locale(Locale.FRENCH)
     .dateFormat("yyyy.MM.dd")
@@ -138,11 +138,9 @@ It can be used to read local files, but also files read across the net, in S3, e
 ColumnType[] types = {SHORT_INT, FLOAT, SHORT_INT};
 String location = 
     "https://raw.githubusercontent.com/jtablesaw/tablesaw/master/data/bush.csv";
-Table table;
-try (InputStream input = new URL(location).openStream()) {
-  table = Table.csv(CsvReadOptions.builder(input, "bush")
-  					.columnTypes(types)));
-}
+Table table = Table.read().usingOptions(CsvReadOptions.builder(new URL(location))
+    .tableName("bush")
+  	.columnTypes(types)));
 ```
 
 ### Loading a CSV from S3:
@@ -153,8 +151,9 @@ S3Object object =
     s3Client.getObject(new GetObjectRequest(bucketName, key));
 
 InputStream stream = object.getObjectContent();
-Table t = Table.csv(CsvReadOptions.builder(stream, "bush")
-                    .columnTypes(types)));
+Table t = Table.csv(CsvReadOptions.builder(stream)
+    .tableName("bush")
+    .columnTypes(types)));
 ```
 
 ### Handling alternate encodings
@@ -167,10 +166,10 @@ InputStreamReader reader = new InputStreamReader(
 			new FileInputStream("somefile.csv"), Charset.forName("ISO-8859-1"));
 
 Table restaurants = Table.read()
-		.csv(CsvReadOptions.builder(reader, "restaurants"));
+		.usingOptions(CsvReadOptions.builder(reader, "restaurants"));
 ```
 
-## Working with Databases
+## Importing from a Database
 
 It's equally easy to create a table from the results of a database query. In this case, you never need to specify the column types, because they are inferred from the database column types. 
 
@@ -191,8 +190,27 @@ try (Statement stmt = conn.createStatement()) {
 }
 ```
 
-## Working with HTML Tables
+## Importing from HTML, JSON, Excel
 
-Tablesaw supports converting data from well-formed HTML tables into CSV files, when there is a single table on a page. See the Javadoc for [HtmlTableReader](http://www.javadoc.io/page/tech.tablesaw/tablesaw-core/latest/tech/tablesaw/io/html/HtmlTableReader.html) for more info.
+Tablesaw supports importing data from HTML, JSON, and Excel. See the Javadoc for the [Table.read()](http://static.javadoc.io/tech.tablesaw/tablesaw-core/0.31.0/tech/tablesaw/io/DataFrameReader.html) methods for more info. You will need to add the corresponding optional dependency:
 
-That covers the major ways to get data into a Tablesaw data set. 
+```
+<dependency>
+  <groupId>tech.tablesaw</groupId>
+  <artifactId>tablesaw-html</artifactId>
+</dependency>
+```
+
+```
+<dependency>
+  <groupId>tech.tablesaw</groupId>
+  <artifactId>tablesaw-json</artifactId>
+</dependency>
+```
+
+```
+<dependency>
+  <groupId>tech.tablesaw</groupId>
+  <artifactId>tablesaw-excel</artifactId>
+</dependency>
+```

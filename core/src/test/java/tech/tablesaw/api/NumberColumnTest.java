@@ -14,7 +14,6 @@
 
 package tech.tablesaw.api;
 
-import com.devskiller.jfairy.Fairy;
 import com.google.common.base.Stopwatch;
 import org.apache.commons.lang3.RandomUtils;
 import org.apache.commons.math3.stat.StatUtils;
@@ -22,8 +21,8 @@ import org.apache.commons.math3.stat.correlation.KendallsCorrelation;
 import org.apache.commons.math3.stat.correlation.PearsonsCorrelation;
 import org.apache.commons.math3.stat.correlation.SpearmansCorrelation;
 import org.apache.commons.math3.stat.descriptive.DescriptiveStatistics;
-import org.junit.Ignore;
-import org.junit.Test;
+import org.junit.jupiter.api.Disabled;
+import org.junit.jupiter.api.Test;
 import tech.tablesaw.columns.Column;
 import tech.tablesaw.columns.numbers.DoubleColumnType;
 import tech.tablesaw.columns.numbers.NumberColumnFormatter;
@@ -38,8 +37,17 @@ import java.util.function.DoubleFunction;
 import java.util.function.DoublePredicate;
 
 import static java.lang.Double.NaN;
-import static org.junit.Assert.*;
-import static tech.tablesaw.aggregate.AggregateFunctions.*;
+import static org.junit.jupiter.api.Assertions.assertEquals;
+import static org.junit.jupiter.api.Assertions.assertFalse;
+import static org.junit.jupiter.api.Assertions.assertNotNull;
+import static org.junit.jupiter.api.Assertions.assertTrue;
+import static tech.tablesaw.aggregate.AggregateFunctions.median;
+import static tech.tablesaw.aggregate.AggregateFunctions.percentile;
+import static tech.tablesaw.aggregate.AggregateFunctions.percentile90;
+import static tech.tablesaw.aggregate.AggregateFunctions.percentile95;
+import static tech.tablesaw.aggregate.AggregateFunctions.percentile99;
+import static tech.tablesaw.aggregate.AggregateFunctions.quartile1;
+import static tech.tablesaw.aggregate.AggregateFunctions.quartile3;
 
 /**
  * Unit tests for the NumberColumn class
@@ -51,12 +59,9 @@ public class NumberColumnTest {
     private static final DoubleFunction<String> toStringD = d -> String.valueOf(d);
     private static final DoubleBinaryOperator sumD = (d1, d2) -> d1 + d2;
 
-    @Ignore
+    @Disabled
     @Test
     public void testApplyFilter() {
-
-        Fairy fairy = Fairy.create();
-        fairy.baseProducer().trueOrFalse();
 
         Table table = Table.create("t");
         DoubleColumn numberColumn = DoubleColumn.create("test", 100_000_000);
@@ -134,7 +139,7 @@ public class NumberColumnTest {
         assertEquals(new DescriptiveStatistics(c.asDoubleArray()).getSkewness(), c.skewness(), 0.00001);
     }
 
-    @Ignore
+    @Disabled
     @Test
     public void testSortAndApplyFilter1() {
 
@@ -240,7 +245,7 @@ public class NumberColumnTest {
         assertEquals("52", result.getString(0, "Test"));
     }
 
-    @Ignore
+    @Disabled
     @Test
     public void testSort1() {
         DoubleColumn numberColumn =  DoubleColumn.create("test", 1_000_000_000);
@@ -545,7 +550,7 @@ public class NumberColumnTest {
     public void testDifferenceEmptyColumn() {
         DoubleColumn initial =  DoubleColumn.create("Test");
         DoubleColumn difference = initial.difference();
-        assertEquals("Expecting empty data set.", 0, difference.size());
+        assertEquals(0, difference.size(), "Expecting empty data set.");
     }
 
     @Test
@@ -555,11 +560,11 @@ public class NumberColumnTest {
         DoubleColumn initial =  DoubleColumn.create("Test", originalValues);
         DoubleColumn csum = initial.cumSum();
 
-        assertEquals("Both sets of data should be the same size.", expectedValues.length, csum.size());
+        assertEquals(expectedValues.length, csum.size(), "Both sets of data should be the same size.");
 
         for (int index = 0; index < csum.size(); index++) {
             double actual = csum.get(index);
-            assertEquals("cumSum() operation at index:" + index + " failed", expectedValues[index], actual, 0);
+            assertEquals(expectedValues[index], actual, 0, "cumSum() operation at index:" + index + " failed");
         }
     }
 
@@ -570,11 +575,11 @@ public class NumberColumnTest {
         DoubleColumn initial =  DoubleColumn.create("Test", originalValues);
         DoubleColumn cprod = initial.cumProd();
 
-        assertEquals("Both sets of data should be the same size.", expectedValues.length, cprod.size());
+        assertEquals(expectedValues.length, cprod.size(), "Both sets of data should be the same size.");
 
         for (int index = 0; index < cprod.size(); index++) {
             double actual = cprod.get(index);
-            assertEquals("cumProd() operation at index:" + index + " failed", expectedValues[index], actual, 0);
+            assertEquals(expectedValues[index], actual, 0, "cumProd() operation at index:" + index + " failed");
         }
     }
 
@@ -603,19 +608,19 @@ public class NumberColumnTest {
         DoubleColumn initial =  DoubleColumn.create("Test", originalValues);
         DoubleColumn pctChange = initial.pctChange();
 
-        assertEquals("Both sets of data should be the same size.", expectedValues.length, pctChange.size());
+        assertEquals(expectedValues.length, pctChange.size(), "Both sets of data should be the same size.");
 
         for (int index = 0; index < pctChange.size(); index++) {
             double actual = pctChange.get(index);
-            assertEquals("pctChange() operation at index:" + index + " failed", expectedValues[index], actual, 0.0001);
+            assertEquals(expectedValues[index], actual, 0.0001, "pctChange() operation at index:" + index + " failed");
         }
     }
 
     private boolean validateEquality(double[] expectedValues, DoubleColumn col) {
-        assertEquals("Both sets of data should be the same size.", expectedValues.length, col.size());
+        assertEquals(expectedValues.length, col.size(), "Both sets of data should be the same size.");
         for (int index = 0; index < col.size(); index++) {
             double actual = col.get(index);
-            assertEquals("value mismatch at index:" + index, expectedValues[index], actual, 0.01);
+            assertEquals(expectedValues[index], actual, 0.01, "value mismatch at index:" + index);
         }
         return true;
     }

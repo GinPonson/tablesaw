@@ -15,32 +15,45 @@
 package tech.tablesaw.io.csv;
 
 import com.univocity.parsers.common.TextParsingException;
-import org.junit.Rule;
-import org.junit.Test;
-import org.junit.rules.ExpectedException;
+import org.junit.jupiter.api.Test;
 import tech.tablesaw.api.ColumnType;
 import tech.tablesaw.api.DateColumn;
 import tech.tablesaw.api.DateTimeColumn;
 import tech.tablesaw.api.LongColumn;
 import tech.tablesaw.api.ShortColumn;
 import tech.tablesaw.api.Table;
+import tech.tablesaw.io.AddCellToColumnException;
 
-import java.io.ByteArrayInputStream;
 import java.io.File;
 import java.io.FileInputStream;
 import java.io.FileReader;
+import java.io.IOException;
 import java.io.InputStream;
 import java.io.Reader;
+import java.io.StringReader;
 import java.nio.file.Paths;
 import java.time.ZoneOffset;
+import java.time.format.DateTimeFormatter;
+import java.time.format.DateTimeFormatterBuilder;
 import java.util.Collections;
 import java.util.List;
 import java.util.Locale;
 
 import static java.util.Arrays.asList;
-import static org.hamcrest.CoreMatchers.*;
-import static org.junit.Assert.*;
-import static tech.tablesaw.api.ColumnType.*;
+import static org.junit.jupiter.api.Assertions.assertArrayEquals;
+import static org.junit.jupiter.api.Assertions.assertEquals;
+import static org.junit.jupiter.api.Assertions.assertFalse;
+import static org.junit.jupiter.api.Assertions.assertNotNull;
+import static org.junit.jupiter.api.Assertions.assertThrows;
+import static tech.tablesaw.api.ColumnType.DOUBLE;
+import static tech.tablesaw.api.ColumnType.FLOAT;
+import static tech.tablesaw.api.ColumnType.INTEGER;
+import static tech.tablesaw.api.ColumnType.LOCAL_DATE;
+import static tech.tablesaw.api.ColumnType.LOCAL_DATE_TIME;
+import static tech.tablesaw.api.ColumnType.LOCAL_TIME;
+import static tech.tablesaw.api.ColumnType.SHORT;
+import static tech.tablesaw.api.ColumnType.SKIP;
+import static tech.tablesaw.api.ColumnType.STRING;
 
 /**
  * Tests for CSV Reading
@@ -52,11 +65,35 @@ public class CsvReaderTest {
     private final ColumnType[] bus_types = {SHORT, STRING, STRING, FLOAT, FLOAT};
     private final ColumnType[] bus_types_with_SKIP = {SHORT, STRING, SKIP, DOUBLE, DOUBLE};
 
-    @Rule
-    public ExpectedException thrown = ExpectedException.none();
+    @Test
+    public void testMaxCharsPerColumnPass() throws IOException {
+        final Reader reader = new StringReader(
+                "Text" + LINE_END
+                        + "\"short\"" + LINE_END
+                        + "1234567890" + LINE_END);
+
+        final int maxCharsPerColumn = 12;
+
+        Table result = Table.read().csv(CsvReadOptions.builder(reader).maxCharsPerColumn(maxCharsPerColumn));
+        assertEquals(2, result.rowCount());
+    }
 
     @Test
-    public void testWithBusData() throws Exception {
+    public void testMaxCharsPerColumnException() {
+        final Reader reader = new StringReader(
+                "Text" + LINE_END
+                        + "\"short\"" + LINE_END
+                        + "1234567890" + LINE_END);
+
+        final int maxCharsPerColumn = 8;
+
+        assertThrows(TextParsingException.class, () -> {
+            Table.read().csv(CsvReadOptions.builder(reader).maxCharsPerColumn(maxCharsPerColumn));
+        });
+    }
+
+    @Test
+    public void testWithBusData() throws IOException {
         // Read the CSV file
         Table table = Table.read().csv(CsvReadOptions
                 .builder("../data/bus_stop_test.csv")
@@ -70,7 +107,7 @@ public class CsvReaderTest {
     }
 
     @Test
-    public void testWithColumnSKIP() throws Exception {
+    public void testWithColumnSKIP() throws IOException {
         // Read the CSV file
         Table table = Table.read().csv(CsvReadOptions
                 .builder("../data/bus_stop_test.csv")
@@ -82,7 +119,7 @@ public class CsvReaderTest {
     }
 
     @Test
-    public void testWithColumnSKIPWithoutHeader() throws Exception {
+    public void testWithColumnSKIPWithoutHeader() throws IOException {
         // Read the CSV file
         Table table = Table.read().csv(CsvReadOptions
                 .builder("../data/bus_stop_noheader_test.csv")
@@ -95,7 +132,7 @@ public class CsvReaderTest {
     }
 
     @Test
-    public void testWithBushData() throws Exception {
+    public void testWithBushData() throws IOException {
         // Read the CSV file
         ColumnType[] types = {LOCAL_DATE, DOUBLE, STRING};
         Table table = Table.read().csv(
@@ -109,7 +146,7 @@ public class CsvReaderTest {
     }
 
     @Test
-    public void testBushDataWithoutSamplingForTypeDetection() throws Exception {
+    public void testBushDataWithoutSamplingForTypeDetection() throws IOException {
         // Read the CSV file
         Table table = Table.read().csv(CsvReadOptions
                 .builder("../data/bush.csv")
@@ -123,16 +160,17 @@ public class CsvReaderTest {
 
 
     @Test
-    public void testDataTypeDetection() throws Exception {
-        InputStream stream = new FileInputStream(new File("../data/bus_stop_test.csv"));
-        CsvReadOptions options = CsvReadOptions.builder(stream, "")
+    public void testDataTypeDetection() throws IOException {
+        Reader reader = new FileReader("../data/bus_stop_test.csv");
+        CsvReadOptions options = CsvReadOptions.builder(reader)
                 .header(true)
+                .minimizeColumnSizes(true)
                 .separator(',')
                 .sample(false)
                 .locale(Locale.getDefault())
                 .build();
 
-        ColumnType[] columnTypes = new CsvReader().detectColumnTypes(stream, options);
+        ColumnType[] columnTypes = new CsvReader().detectColumnTypes(reader, options);
         assertArrayEquals(bus_types, columnTypes);
     }
 
@@ -147,118 +185,199 @@ public class CsvReaderTest {
     @Test
     public void testLocalDateDetectionEnglish() {
 
-        final InputStream stream = new ByteArrayInputStream((
+        final Reader reader = new StringReader(
                 "Date" + LINE_END
             + "\"Nov 1, 2017\"" + LINE_END
             + "\"Oct 1, 2017\"" + LINE_END
             + "\"Sep 1, 2017\"" + LINE_END
             + "\"Aug 1, 2017\"" + LINE_END
             + "\"Jul 1, 2017\"" + LINE_END
-            + "\"Jun 1, 2017\"" + LINE_END).getBytes());
+            + "\"Jun 1, 2017\"" + LINE_END);
 
         final boolean header = true;
         final char delimiter = ',';
         final boolean useSampling = true;
 
-        CsvReadOptions options = CsvReadOptions.builder(stream, "")
+        CsvReadOptions options = CsvReadOptions.builder(reader)
                 .header(header)
                 .separator(delimiter)
                 .sample(useSampling)
                 .locale(Locale.ENGLISH)
                 .build();
 
-        final List<ColumnType> actual = asList(new CsvReader().detectColumnTypes(stream, options));
+        final List<ColumnType> actual = asList(new CsvReader().detectColumnTypes(reader, options));
 
-        assertThat(actual, is(equalTo(Collections.singletonList(LOCAL_DATE))));
+        assertEquals(Collections.singletonList(LOCAL_DATE), actual);
     }
 
     @Test
-    public void testLocalDateTimeDetectionEnglish() {
+    public void testDateTimeDetection() {
 
-        final InputStream stream = new ByteArrayInputStream((
+        final Reader reader = new StringReader(
               "Date" + LINE_END
-            + "09-Nov-2014 13:03" + LINE_END
-            + "09-Oct-2014 13:03" + LINE_END
-            + "09-Sep-2014 13:03" + LINE_END
-            + "09-Aug-2014 13:03" + LINE_END
-            + "09-Jul-2014 13:03" + LINE_END
-            + "09-Jun-2014 13:03" + LINE_END).getBytes());
+            + "09-Nov-2014 13:03:04" + LINE_END
+            + "09-Oct-2014 13:03:56" + LINE_END);
 
         final boolean header = true;
-        final char delimiter = ',';
-        final boolean useSampling = true;
 
-        CsvReadOptions options = CsvReadOptions.builder(stream, "")
+        CsvReadOptions options = CsvReadOptions.builder(reader)
                 .header(header)
-                .separator(delimiter)
-                .sample(useSampling)
-                .locale(Locale.ENGLISH)
+                .dateTimeFormat("dd-MMM-yyyy HH:mm:ss")
                 .build();
 
-        final List<ColumnType> actual = asList(new CsvReader().detectColumnTypes(stream, options));
+        final List<ColumnType> actual = asList(new CsvReader().detectColumnTypes(reader, options));
 
-        assertThat(actual, is(equalTo(Collections.singletonList(LOCAL_DATE_TIME))));
+        assertEquals(Collections.singletonList(LOCAL_DATE_TIME), actual);
+    }
 
+    @Test
+    public void testDateTimeDetection2() {
+
+        final Reader reader = new StringReader(
+              "Date" + LINE_END
+            + "09-Nov-2014 13:03:04" + LINE_END
+            + "09-Oct-2014 13:03:56" + LINE_END);
+
+        final boolean header = true;
+
+        CsvReadOptions options = CsvReadOptions.builder(reader)
+                .header(header)
+                .dateTimeFormat(DateTimeFormatter.ofPattern("dd-MMM-yyyy HH:mm:ss"))
+                .build();
+
+        final List<ColumnType> actual = asList(new CsvReader().detectColumnTypes(reader, options));
+
+        assertEquals(Collections.singletonList(LOCAL_DATE_TIME), actual);
+    }
+
+    @Test
+    public void testDateTimeDetection3() {
+
+        final Reader reader = new StringReader(
+              "Date" + LINE_END
+            + "09-NOV-2014 13:03:04" + LINE_END
+            + "09-OCT-2014 13:03:56" + LINE_END);
+
+        final boolean header = true;
+
+        CsvReadOptions options = CsvReadOptions.builder(reader)
+                .header(header)
+                .dateTimeFormat(
+                        new DateTimeFormatterBuilder()
+                                .parseCaseInsensitive()
+                                .appendPattern("dd-MMM-yyyy HH:mm:ss")
+                                .toFormatter())
+                .build();
+
+        final List<ColumnType> actual = asList(new CsvReader().detectColumnTypes(reader, options));
+
+        assertEquals(Collections.singletonList(LOCAL_DATE_TIME), actual);
+    }
+
+    @Test
+    public void testDateDetection1() {
+
+        final Reader reader = new StringReader(
+              "Time" + LINE_END
+            + "13.03.04" + LINE_END
+            + "13.03.04" + LINE_END);
+
+        final boolean header = true;
+
+        CsvReadOptions options = CsvReadOptions.builder(reader)
+                .header(header)
+                .timeFormat(
+                        new DateTimeFormatterBuilder()
+                                .parseCaseInsensitive()
+                                .appendPattern("HH.mm.ss")
+                                .toFormatter())
+                .build();
+
+        final List<ColumnType> actual = asList(new CsvReader().detectColumnTypes(reader, options));
+        assertEquals(Collections.singletonList(LOCAL_TIME), actual);
+    }
+
+    @Test
+    public void testTimeDetection1() {
+
+        final Reader reader = new StringReader(
+              "Date" + LINE_END
+            + "09-NOV-2014" + LINE_END
+            + "09-OCT-2014" + LINE_END);
+
+        final boolean header = true;
+
+        CsvReadOptions options = CsvReadOptions.builder(reader)
+                .header(header)
+                .dateFormat(
+                        new DateTimeFormatterBuilder()
+                                .parseCaseInsensitive()
+                                .appendPattern("dd-MMM-yyyy")
+                                .toFormatter())
+                .build();
+
+        final List<ColumnType> actual = asList(new CsvReader().detectColumnTypes(reader, options));
+        assertEquals(Collections.singletonList(LOCAL_DATE), actual);
     }
 
     @Test
     public void testLocalDateDetectionFrench() {
 
-        final InputStream stream = new ByteArrayInputStream((
+        final Reader reader = new StringReader(
                 "Date" + LINE_END
             + "\"nov. 1, 2017\"" + LINE_END
             + "\"oct. 1, 2017\"" + LINE_END
             + "\"sept. 1, 2017\"" + LINE_END
             + "\"août 1, 2017\"" + LINE_END
             + "\"juil. 1, 2017\"" + LINE_END
-            + "\"juin 1, 2017\""+ LINE_END).getBytes());
+            + "\"juin 1, 2017\""+ LINE_END);
 
         final boolean header = true;
         final char delimiter = ',';
         final boolean useSampling = true;
 
-        CsvReadOptions options = CsvReadOptions.builder(stream, "")
+        CsvReadOptions options = CsvReadOptions.builder(reader)
                 .header(header)
                 .separator(delimiter)
                 .sample(useSampling)
                 .locale(Locale.FRENCH)
                 .build();
 
-        final List<ColumnType> actual = asList(new CsvReader().detectColumnTypes(stream, options));
+        final List<ColumnType> actual = asList(new CsvReader().detectColumnTypes(reader, options));
 
-        assertThat(actual, is(equalTo(Collections.singletonList(LOCAL_DATE))));
+        assertEquals(actual, Collections.singletonList(LOCAL_DATE));
     }
 
     @Test
     public void testLocalDateTimeDetectionFrench() {
 
-        final InputStream stream = new ByteArrayInputStream((
+        final Reader reader = new StringReader(
               "Date" + LINE_END
             + "09-nov.-2014 13:03" + LINE_END
             + "09-oct.-2014 13:03" + LINE_END
             + "09-sept.-2014 13:03" + LINE_END
             + "09-août-2014 13:03" + LINE_END
             + "09-juil.-2014 13:03" + LINE_END
-            + "09-juin-2014 13:03" + LINE_END).getBytes());
+            + "09-juin-2014 13:03" + LINE_END);
 
         final boolean header = true;
         final char delimiter = ',';
         final boolean useSampling = true;
 
-        CsvReadOptions options = CsvReadOptions.builder(stream, "")
+        CsvReadOptions options = CsvReadOptions.builder(reader)
                 .header(header)
                 .separator(delimiter)
                 .sample(useSampling)
                 .locale(Locale.FRENCH)
                 .build();
 
-        final List<ColumnType> actual = asList(new CsvReader().detectColumnTypes(stream, options));
+        final List<ColumnType> actual = asList(new CsvReader().detectColumnTypes(reader, options));
 
-        assertThat(actual, is(equalTo(Collections.singletonList(LOCAL_DATE_TIME))));
+        assertEquals(actual, Collections.singletonList(LOCAL_DATE_TIME));
     }
 
     @Test
-    public void testWithMissingValue() throws Exception {
+    public void testWithMissingValue() throws IOException {
 
         CsvReadOptions options = CsvReadOptions.builder("../data/missing_values.csv")
                 .dateFormat("yyyy.MM.dd")
@@ -273,8 +392,23 @@ public class CsvReaderTest {
     }
 
     @Test
-    public void testLineEndings() throws Exception {
+    public void testWindowsAndLinuxLineEndings() throws IOException {
+        Reader reader = new StringReader(
+              "TestCol\n"
+            + "foobar1\n"
+            + "foobar2\n"
+            + "foobar3\n"
+            + "foobar4\r\n"
+            + "foobar5\r\n"
+            + "foobar6\r\n");
 
+        Table t = Table.read().csv(reader);
+        assertEquals(1, t.columnCount());
+        assertEquals(6, t.rowCount());
+    }
+
+    @Test
+    public void testCustomLineEndings() throws IOException {
         CsvReadOptions options = CsvReadOptions.builder("../data/alt_line_endings.csv")
                 .lineEnding("~")
                 .header(true)
@@ -286,7 +420,7 @@ public class CsvReaderTest {
     }
 
     @Test
-    public void testDateWithFormatter2() throws Exception {
+    public void testDateWithFormatter1() throws IOException {
 
         final boolean header = false;
         final char delimiter = ',';
@@ -305,40 +439,65 @@ public class CsvReaderTest {
     }
 
     @Test
-    public void testPrintStructure() throws Exception {
-        String output =
-                "ColumnType[] columnTypes = {" + LINE_END +
-                        "LOCAL_DATE, // 0     date        " + LINE_END +
-                        "SHORT,      // 1     approval    " + LINE_END +
-                        "STRING,     // 2     who         " + LINE_END +
-                        "}" + LINE_END;
-        assertEquals(output, new CsvReader()
-                .printColumnTypes("../data/bush.csv", true, ',', Locale.getDefault()));
+    public void testDateWithFormatter2() throws IOException {
+
+        final boolean header = false;
+        final char delimiter = ',';
+        final boolean useSampling = true;
+
+        CsvReadOptions options = CsvReadOptions.builder("../data/date_format_test.txt")
+                .header(header)
+                .separator(delimiter)
+                .sample(useSampling)
+                .dateFormat(DateTimeFormatter.ofPattern("yyyy.MM.dd"))
+                .build();
+
+        final Table table = Table.read().csv(options);
+        DateColumn date = table.dateColumn(0);
+        assertFalse(date.isEmpty());
     }
 
     @Test
-    public void testDataTypeDetection2() throws Exception {
-        InputStream stream = new FileInputStream(new File("../data/bush.csv"));
-        CsvReadOptions options = CsvReadOptions.builder(stream, "")
+    public void testPrintStructure() throws IOException {
+        String output =
+                "ColumnType[] columnTypes = {" + LINE_END +
+                        "LOCAL_DATE, // 0     date        " + LINE_END +
+                        "INTEGER,    // 1     approval    " + LINE_END +
+                        "STRING,     // 2     who         " + LINE_END +
+                        "}" + LINE_END;
+        assertEquals(output, new CsvReader()
+                .printColumnTypes(CsvReadOptions.builder("../data/bush.csv")
+                        .header(true)
+                        .separator(',')
+                        .locale(Locale.getDefault())
+                        .sample(true)
+                        .build()));
+    }
+
+    @Test
+    public void testDataTypeDetection2() throws IOException {
+        Reader reader = new FileReader("../data/bush.csv");
+        CsvReadOptions options = CsvReadOptions.builder(reader)
                 .header(true)
                 .separator(',')
                 .sample(false)
                 .locale(Locale.getDefault())
                 .build();
 
-        ColumnType[] columnTypes = new CsvReader().detectColumnTypes(stream, options);
+        ColumnType[] columnTypes = new CsvReader().detectColumnTypes(reader, options);
         assertEquals(LOCAL_DATE, columnTypes[0]);
-        assertEquals(SHORT, columnTypes[1]);
+        assertEquals(INTEGER, columnTypes[1]);
         assertEquals(STRING, columnTypes[2]);
     }
 
     @Test
-    public void testLoadFromUrlWithColumnTypes() throws Exception {
+    public void testLoadFromUrlWithColumnTypes() throws IOException {
         ColumnType[] types = {LOCAL_DATE, DOUBLE, STRING};
         Table table;
         try (InputStream input = new File("../data/bush.csv").toURI().toURL().openStream()) {
             table = Table.read().csv(CsvReadOptions
-                    .builder(input, "Bush approval ratings")
+                    .builder(input)
+                    .tableName("Bush approval ratings")
                     .columnTypes(types));
         }
         assertNotNull(table);
@@ -349,11 +508,12 @@ public class CsvReaderTest {
      * Read from a url while performing column type inference
      */
     @Test
-    public void testLoadFromUrl() throws Exception {
+    public void testLoadFromUrl() throws IOException {
         Table table;
         try (InputStream input = new File("../data/bush.csv").toURI().toURL().openStream()) {
             table = Table.read().csv(CsvReadOptions
-                    .builder(input, "Bush approval ratings"));
+                    .builder(input)
+                    .tableName("Bush approval ratings"));
         }
         assertNotNull(table);
         assertEquals(3, table.columnCount());
@@ -363,13 +523,14 @@ public class CsvReaderTest {
      * Read from a file input stream while performing column type inference
      */
     @Test
-    public void testLoadFromFileStream() throws Exception {
+    public void testLoadFromFileStream() throws IOException {
         String location = "../data/bush.csv";
         Table table;
         File file = Paths.get(location).toFile();
         try (InputStream input = new FileInputStream(file)) {
             table = Table.read().csv(CsvReadOptions
-                    .builder(input, "Bush approval ratings"));
+                    .builder(input)
+                    .tableName("Bush approval ratings"));
         }
         assertNotNull(table);
         assertEquals(3, table.columnCount());
@@ -379,52 +540,57 @@ public class CsvReaderTest {
      * Read from a file input stream while performing column type inference
      */
     @Test
-    public void testLoadFromFileStreamReader() throws Exception {
+    public void testLoadFromFileStreamReader() throws IOException {
         String location = "../data/bush.csv";
         Table table;
         File file = Paths.get(location).toFile();
         try (Reader reader = new FileReader(file)) {
             table = Table.read().csv(CsvReadOptions
-                    .builder(reader, "Bush approval ratings"));
+                    .builder(reader)
+                    .tableName("Bush approval ratings"));
         }
         assertNotNull(table);
         assertEquals(3, table.columnCount());
     }
 
     @Test
-    public void testEmptyRow() throws Exception {
-        Table.read().csv("../data/empty_row.csv");
+    public void testEmptyRow() throws IOException {
+        Table table = Table.read().csv("../data/empty_row.csv");
         // Note: tried capturing std err output and asserting on it, but it failed when running as mvn target
+        assertEquals(5, table.rowCount());
     }
 
     @Test
-    public void testShortRow() throws Exception {
-        thrown.expect(AddCellToColumnException.class);
-        Table.read().csv("../data/short_row.csv");
+    public void testShortRow() {
+        assertThrows(AddCellToColumnException.class, () -> {
+            Table.read().csv("../data/short_row.csv");
+        });
     }
 
     @Test
-    public void testLongRow() throws Exception {
-        thrown.expect(RuntimeException.class);
-        Table.read().csv("../data/long_row.csv");
+    public void testLongRow() {
+        assertThrows(RuntimeException.class, () -> {
+            Table.read().csv("../data/long_row.csv");
+        });
     }
 
     @Test
-    public void testBoundary1() throws Exception {
-        Table table1 = Table.read().csv("../data/boundaryTest1.csv");
-        table1.structure();  // just make sure the import completed
+    public void testBoundary1() throws IOException {
+        Table table = Table.read().csv("../data/boundaryTest1.csv");
+        assertEquals(2, table.rowCount());
     }
 
     @Test
-    public void testBoundary2() throws Exception {
-        Table table1 = Table.read().csv("../data/boundaryTest2.csv");
-        table1.structure(); // just make sure the import completed
+    public void testBoundary2() throws IOException {
+        Table table = Table.read().csv("../data/boundaryTest2.csv");
+        assertEquals(2, table.rowCount());
     }
 
     @Test
-    public void testReadFailure() throws Exception {
+    public void testReadFailure() throws IOException {
         // TODO (lwhite): These tests don't fail. What was their intent?
-        Table table1 = Table.read().csv("../data/read_failure_test.csv");
+        Table table1 = Table.read().csv(CsvReadOptions.builder("../data/read_failure_test.csv")
+                .minimizeColumnSizes(true));
         table1.structure(); // just make sure the import completed
         ShortColumn test = table1.shortColumn("Test");
         //TODO(lwhite): Better tests
@@ -432,8 +598,10 @@ public class CsvReaderTest {
     }
 
     @Test
-    public void testReadFailure2() throws Exception {
-        Table table1 = Table.read().csv("../data/read_failure_test2.csv");
+    public void testReadFailure2() throws IOException {
+        Table table1 = Table.read().csv(
+                CsvReadOptions.builder("../data/read_failure_test2.csv")
+                .minimizeColumnSizes(true));
         table1.structure(); // just make sure the import completed
         ShortColumn test = table1.shortColumn("Test");
 
@@ -442,7 +610,7 @@ public class CsvReaderTest {
     }
 
     @Test
-    public void testEmptyFileHeaderEnabled() throws Exception {
+    public void testEmptyFileHeaderEnabled() throws IOException {
         Table table1 = Table.read().csv(CsvReadOptions
                 .builder("../data/empty_file.csv")
                 .header(false));
@@ -450,22 +618,23 @@ public class CsvReaderTest {
     }
 
     @Test
-    public void testEmptyFileHeaderDisabled() throws Exception {
+    public void testEmptyFileHeaderDisabled() throws IOException {
         Table table1 = Table.read().csv(CsvReadOptions
                 .builder("../data/empty_file.csv")
                 .header(false));
         assertEquals("0 rows X 0 cols", table1.shape());
     }
 
-    @Test(expected = TextParsingException.class)
-    public void testReadMaxColumnsExceeded() throws Exception {
-        Table.read().csv(CsvReadOptions
+    public void testReadMaxColumnsExceeded() {
+        assertThrows(TextParsingException.class, () -> {
+            Table.read().csv(CsvReadOptions
                 .builder("../data/10001_columns.csv")
                 .header(false));
+        });
     }
 
     @Test
-    public void testReadWithMaxColumnsSetting() throws Exception {
+    public void testReadWithMaxColumnsSetting() throws IOException {
         Table table1 = Table.read().csv(CsvReadOptions
                 .builder("../data/10001_columns.csv")
                 .maxNumberOfColumns(10001)
@@ -474,10 +643,18 @@ public class CsvReaderTest {
     }
 
     @Test
-    public void getTypeArray() {
-        List<ColumnType> types = new CsvReader().getTypeArray();
-        for (ColumnType type : types) {
-            assertNotNull(type);
-        }
+    public void testSkipLinesWithComments() throws IOException {
+        Table table1 = Table.read().csv(CsvReadOptions
+                .builder("../data/with_comments.csv")
+                .maxNumberOfColumns(3)
+                .commentPrefix('#')
+                .header(true));
+        assertEquals("3 rows X 3 cols", table1.shape());
+    }
+    
+    @Test
+    public void carriageReturnLineEnding() throws IOException {
+	Table table = Table.read().csv(CsvReadOptions.builder("../data/sacramento_real_estate_transactions.csv"));
+	assertEquals(985, table.rowCount());
     }
 }

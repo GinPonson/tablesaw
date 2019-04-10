@@ -14,8 +14,8 @@
 
 package tech.tablesaw.api;
 
-import org.junit.Before;
-import org.junit.Test;
+import org.junit.jupiter.api.BeforeEach;
+import org.junit.jupiter.api.Test;
 import tech.tablesaw.columns.Column;
 import tech.tablesaw.columns.numbers.IntColumnType;
 import tech.tablesaw.columns.times.TimeColumnType;
@@ -25,13 +25,12 @@ import java.nio.ByteBuffer;
 import java.time.LocalTime;
 import java.time.temporal.ChronoUnit;
 import java.util.List;
-import java.util.Set;
 
-import static org.junit.Assert.assertEquals;
-import static org.junit.Assert.assertFalse;
-import static org.junit.Assert.assertNotEquals;
-import static org.junit.Assert.assertNull;
-import static org.junit.Assert.assertTrue;
+import static org.junit.jupiter.api.Assertions.assertEquals;
+import static org.junit.jupiter.api.Assertions.assertFalse;
+import static org.junit.jupiter.api.Assertions.assertNotEquals;
+import static org.junit.jupiter.api.Assertions.assertNull;
+import static org.junit.jupiter.api.Assertions.assertTrue;
 import static tech.tablesaw.columns.times.PackedLocalTime.getMinuteOfDay;
 import static tech.tablesaw.columns.times.PackedLocalTime.getSecondOfDay;
 import static tech.tablesaw.columns.times.PackedLocalTime.of;
@@ -40,7 +39,7 @@ public class TimeColumnTest {
 
     private TimeColumn column1;
 
-    @Before
+    @BeforeEach
     public void setUp() {
         Table table = Table.create("Test");
         column1 = TimeColumn.create("Game time");
@@ -145,18 +144,6 @@ public class TimeColumnTest {
         assertEquals(LocalTime.NOON, column1.get(1));
         assertNotEquals(LocalTime.NOON, column1.get(2));
         assertNotEquals(LocalTime.NOON, column1.get(3));
-    }
-
-    @Test
-    public void testAsSet() {
-        column1.appendCell("10:15:30");
-        column1.appendCell("11:30:00");
-        column1.appendCell("14:00:00");
-        column1.appendCell("18:15:30");
-        column1.appendInternal(of(12,0, 0));
-        column1.appendInternal(of(12,0, 0));
-        Set<LocalTime> set = column1.asSet();
-        assertEquals(column1.size(), set.size() + 1);
     }
 
     @Test

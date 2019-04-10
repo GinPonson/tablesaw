@@ -14,9 +14,24 @@
 
 package tech.tablesaw.api;
 
+import static java.util.stream.Collectors.toList;
+import static tech.tablesaw.aggregate.AggregateFunctions.countMissing;
+import static tech.tablesaw.selection.Selection.selectNRowsAtRandom;
+
+import java.util.ArrayList;
+import java.util.Arrays;
+import java.util.Comparator;
+import java.util.Iterator;
+import java.util.List;
+import java.util.function.Consumer;
+import java.util.function.Predicate;
+
 import com.google.common.base.Preconditions;
 import com.google.common.collect.Lists;
 import com.google.common.primitives.Ints;
+
+import io.github.classgraph.ClassGraph;
+import io.github.classgraph.ScanResult;
 import it.unimi.dsi.fastutil.ints.IntArrays;
 import it.unimi.dsi.fastutil.ints.IntComparator;
 import tech.tablesaw.aggregate.AggregateFunction;
@@ -26,7 +41,10 @@ import tech.tablesaw.aggregate.Summarizer;
 import tech.tablesaw.columns.Column;
 import tech.tablesaw.io.DataFrameReader;
 import tech.tablesaw.io.DataFrameWriter;
-import tech.tablesaw.io.html.HtmlTableWriter;
+import tech.tablesaw.io.DataReader;
+import tech.tablesaw.io.DataWriter;
+import tech.tablesaw.io.ReaderRegistry;
+import tech.tablesaw.io.WriterRegistry;
 import tech.tablesaw.joining.DataFrameJoiner;
 import tech.tablesaw.selection.BitmapBackedSelection;
 import tech.tablesaw.selection.Selection;
@@ -38,18 +56,6 @@ import tech.tablesaw.table.Rows;
 import tech.tablesaw.table.StandardTableSliceGroup;
 import tech.tablesaw.table.TableSliceGroup;
 
-import java.util.ArrayList;
-import java.util.Arrays;
-import java.util.Comparator;
-import java.util.Iterator;
-import java.util.List;
-import java.util.function.Consumer;
-import java.util.function.Predicate;
-
-import static java.util.stream.Collectors.toList;
-import static tech.tablesaw.aggregate.AggregateFunctions.countMissing;
-import static tech.tablesaw.selection.Selection.selectNRowsAtRandom;
-
 /**
  * A table of data, consisting of some number of columns, each of which has the same number of rows.
  * All the data in a column has the same type: integer, float, category, etc., but a table may contain an arbitrary
@@ -58,6 +64,13 @@ import static tech.tablesaw.selection.Selection.selectNRowsAtRandom;
  * Tables are the main data-type and primary focus of Airframe.
  */
 public class Table extends Relation implements Iterable<Row> {
+
+    public static final ReaderRegistry defaultReaderRegistry = new ReaderRegistry();
+    public static final WriterRegistry defaultWriterRegistry = new WriterRegistry();
+
+    static {
+        autoRegisterReadersAndWriters();
+    }
 
     /**
      * The columns that hold the data in this table
@@ -69,10 +82,25 @@ public class Table extends Relation implements Iterable<Row> {
     private String name;
 
     /**
+     * Returns a new table
+     */
+    private Table() {
+    }
+
+    /**
      * Returns a new table initialized with the given name
      */
     private Table(String name) {
         this.name = name;
+    }
+
+    /**
+     * Returns a new Table initialized with the given columns
+     *
+     * @param columns One or more columns, all of which must have either the same length or size 0
+     */
+    protected Table(Column<?>... columns) {
+        this(null, columns);
     }
 
     /**
@@ -88,6 +116,28 @@ public class Table extends Relation implements Iterable<Row> {
         }
     }
 
+    private static void autoRegisterReadersAndWriters() {
+        try (ScanResult scanResult = new ClassGraph().enableAllInfo().whitelistPackages("tech.tablesaw.io").scan()) {
+            List<String> classes = new ArrayList<>();
+            classes.addAll(scanResult.getClassesImplementing(DataWriter.class.getName()).getNames());
+            classes.addAll(scanResult.getClassesImplementing(DataReader.class.getName()).getNames());
+            for (String clazz : classes) {
+                try {
+                    Class.forName(clazz);
+                } catch (ClassNotFoundException e) {
+                    new IllegalStateException(e);
+                }
+            }
+        }
+    }
+
+    /**
+     * Returns a new, empty table (without rows or columns)
+     */
+    public static Table create() {
+        return new Table();
+    }
+
     /**
      * Returns a new, empty table (without rows or columns) with the given name
      */
@@ -96,12 +146,22 @@ public class Table extends Relation implements Iterable<Row> {
     }
 
     /**
+     * Returns a new table with the given columns
+     *
+     * @param columns one or more columns, all of the same @code{column.size()}
+     */
+    public static Table create(Column<?>... columns) {
+        return new Table(columns);
+    }
+
+    /**
      * Returns a new table with the given columns and given name
      *
-     * @param columns One or more columns, all of the same @code{column.size()}
+     * @param name the name for this table 
+     * @param columns one or more columns, all of the same @code{column.size()}
      */
-    public static Table create(final String tableName, final Column<?>... columns) {
-        return new Table(tableName, columns);
+    public static Table create(String name, Column<?>... columns) {
+        return new Table(name, columns);
     }
 
     /**
@@ -129,11 +189,11 @@ public class Table extends Relation implements Iterable<Row> {
     }
 
     public static DataFrameReader read() {
-        return new DataFrameReader();
+        return new DataFrameReader(defaultReaderRegistry);
     }
 
     public DataFrameWriter write() {
-        return new DataFrameWriter(this);
+        return new DataFrameWriter(defaultWriterRegistry, this);
     }
 
     /**
@@ -158,7 +218,8 @@ public class Table extends Relation implements Iterable<Row> {
     }
 
     /**
-     * Throws an IllegalArgumentException if a column with the given name is already in the table
+     * Throws an IllegalArgumentException if a column with the given name is already in the table, or if the number of
+     * rows in the column does not match the number of rows in the table
      */
     private void validateColumn(final Column<?> newColumn) {
         Preconditions.checkNotNull(newColumn, "Attempted to add a null to the columns in table " + name);
@@ -169,6 +230,19 @@ public class Table extends Relation implements Iterable<Row> {
         if (stringList.contains(newColumn.name().toLowerCase())) {
             String message = String.format("Cannot add column with duplicate name %s to table %s", newColumn, name);
             throw new IllegalArgumentException(message);
+        }
+
+        checkColumnSize(newColumn);
+    }
+
+    /**
+     * Throws an IllegalArgumentException if the column size doesn't match the rowCount() for the table
+     */
+    private void checkColumnSize(Column<?> newColumn) {
+        if (columnCount() != 0) {
+            Preconditions.checkArgument(newColumn.size() == rowCount(),
+                    "Column " + newColumn.name() +
+                            " does not have the same number of rows as the other columns in the table.");
         }
     }
 
@@ -192,8 +266,7 @@ public class Table extends Relation implements Iterable<Row> {
      */
     public Table replaceColumn(final int colIndex, final Column<?> newColumn) {
         removeColumns(column(colIndex));
-        insertColumn(colIndex, newColumn);
-        return this;
+        return insertColumn(colIndex, newColumn);
     }
 
     /**
@@ -204,8 +277,7 @@ public class Table extends Relation implements Iterable<Row> {
      */
     public Table replaceColumn(final String columnName, final Column<?> newColumn) {
         int colIndex = columnIndex(columnName);
-        replaceColumn(colIndex, newColumn);
-        return this;
+        return replaceColumn(colIndex, newColumn);
     }
 
     /**
@@ -703,10 +775,6 @@ public class Table extends Relation implements Iterable<Row> {
         return StandardTableSliceGroup.create(this, columns);
     }
 
-    public String printHtml() {
-        return HtmlTableWriter.write(this);
-    }
-
     public Table structure() {
         Table t = new Table("Structure of " + name());
 
@@ -956,7 +1024,7 @@ public class Table extends Relation implements Iterable<Row> {
     }
 
     /**
-     * Applies the operation in {@code doable} to every row in the table
+     * Applies the operation in {@code rowConsumer} to every series of n rows in the table
      */
     public void stepWithRows(Consumer<Row[]> rowConsumer, int n) {
         if (isEmpty()) {
@@ -967,10 +1035,12 @@ public class Table extends Relation implements Iterable<Row> {
             rows[i] = new Row(this);
         }
 
-        int max = rowCount() - n;
-        for (int i = 0; i <= max; i++) {
-            for (int r = 0; r < n; r++) {
-                rows[r].at(i + r);
+        int max = rowCount() / n;
+
+        for (int i = 0; i < max; i++) {  //0, 1
+            for (int r = 1; r <= n; r++) {
+                int row = i*n + r - 1;
+                rows[r-1].at(row);
             }
             rowConsumer.accept(rows);
         }
@@ -994,7 +1064,7 @@ public class Table extends Relation implements Iterable<Row> {
     }
 
     /**
-     * Applies the function in {@code pairs} to each consecutive pairs of rows in the table
+     * Applies the function in {@code pairConsumer} to each consecutive pairs of rows in the table
      */
     public void doWithRowPairs(Consumer<RowPair> pairConsumer) {
         if (isEmpty()) {
@@ -1012,7 +1082,7 @@ public class Table extends Relation implements Iterable<Row> {
     }
 
     /**
-     * Applies the function in {@code pairs} to each group of contiguous rows of size n in the table
+     * Applies the function in {@code rowConsumer} to each group of contiguous rows of size n in the table
      * This can be used, for example, to calculate a running average of in rows
      */
     public void rollWithRows(Consumer<Row[]> rowConsumer, int n) {

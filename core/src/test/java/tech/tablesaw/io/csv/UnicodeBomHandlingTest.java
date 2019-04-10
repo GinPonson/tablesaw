@@ -1,13 +1,13 @@
 package tech.tablesaw.io.csv;
 
-import org.junit.Test;
+import org.junit.jupiter.api.Test;
 import tech.tablesaw.api.Table;
 
 import java.io.ByteArrayInputStream;
 import java.io.IOException;
 import java.io.InputStreamReader;
 
-import static org.junit.Assert.assertEquals;
+import static org.junit.jupiter.api.Assertions.assertEquals;
 import static tech.tablesaw.io.csv.UnicodeBomHandlingTest.BOM.UTF_8;
 
 public class UnicodeBomHandlingTest {
@@ -24,14 +24,14 @@ public class UnicodeBomHandlingTest {
 
 
     @Test
-    public void test_JavaBehaviour() throws IOException {
+    public void javaBehaviour() throws IOException {
 
-        Table t = new CsvReader().read(CsvReadOptions.builder(
-                new InputStreamReader(new ByteArrayInputStream(CONTENT)), "R").header(false).build());
-        assertEquals((short) 1, t.get(0, 0));
-        t = new CsvReader().read(CsvReadOptions.builder(
-                new InputStreamReader(new ByteArrayInputStream(UTF8_BOM_CONTENT)), "R").header(false).build());
-        assertEquals((short) 1, t.get(0, 0));
+        Table t = Table.read().csv(CsvReadOptions.builder(
+                new InputStreamReader(new ByteArrayInputStream(CONTENT))).tableName("R").header(false).build());
+        assertEquals(1, t.get(0, 0));
+        t = Table.read().csv(CsvReadOptions.builder(
+                new InputStreamReader(new ByteArrayInputStream(UTF8_BOM_CONTENT))).tableName("R").header(false).build());
+        assertEquals(1, t.get(0, 0));
     }
 
     protected static final class BOM {

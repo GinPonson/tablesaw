@@ -14,7 +14,24 @@
 
 package tech.tablesaw.api;
 
+import static tech.tablesaw.columns.DateAndTimePredicates.isMissing;
+import static tech.tablesaw.columns.DateAndTimePredicates.isNotMissing;
+
+import java.nio.ByteBuffer;
+import java.time.LocalTime;
+import java.time.format.DateTimeFormatter;
+import java.util.ArrayList;
+import java.util.Arrays;
+import java.util.Comparator;
+import java.util.Iterator;
+import java.util.List;
+import java.util.function.Consumer;
+import java.util.function.Function;
+import java.util.function.Predicate;
+import java.util.function.Supplier;
+
 import com.google.common.base.Preconditions;
+
 import it.unimi.dsi.fastutil.ints.IntArrayList;
 import it.unimi.dsi.fastutil.ints.IntArrays;
 import it.unimi.dsi.fastutil.ints.IntComparator;
@@ -22,8 +39,8 @@ import it.unimi.dsi.fastutil.ints.IntIterator;
 import it.unimi.dsi.fastutil.ints.IntOpenHashSet;
 import it.unimi.dsi.fastutil.ints.IntSet;
 import tech.tablesaw.columns.AbstractColumn;
+import tech.tablesaw.columns.AbstractColumnParser;
 import tech.tablesaw.columns.Column;
-import tech.tablesaw.columns.AbstractParser;
 import tech.tablesaw.columns.times.PackedLocalTime;
 import tech.tablesaw.columns.times.TimeColumnFormatter;
 import tech.tablesaw.columns.times.TimeColumnType;
@@ -32,23 +49,6 @@ import tech.tablesaw.columns.times.TimeFilters;
 import tech.tablesaw.columns.times.TimeMapFunctions;
 import tech.tablesaw.selection.Selection;
 import tech.tablesaw.sorting.comparators.DescendingIntComparator;
-
-import java.nio.ByteBuffer;
-import java.time.LocalTime;
-import java.time.format.DateTimeFormatter;
-import java.util.ArrayList;
-import java.util.Arrays;
-import java.util.Comparator;
-import java.util.HashSet;
-import java.util.Iterator;
-import java.util.List;
-import java.util.Set;
-import java.util.function.Consumer;
-import java.util.function.Function;
-import java.util.function.Predicate;
-import java.util.function.Supplier;
-
-import static tech.tablesaw.columns.DateAndTimePredicates.*;
 
 /**
  * A column in a base table that contains float values
@@ -365,7 +365,7 @@ public class TimeColumn extends AbstractColumn<LocalTime>
     }
 
     @Override
-    public TimeColumn appendCell(String object, AbstractParser<?> parser) {
+    public TimeColumn appendCell(String object, AbstractColumnParser<?> parser) {
         return appendObj(parser.parse(object));
     }
 
@@ -502,15 +502,6 @@ public class TimeColumn extends AbstractColumn<LocalTime>
 
     public IntIterator intIterator() {
         return data.iterator();
-    }
-
-    Set<LocalTime> asSet() {
-        Set<LocalTime> times = new HashSet<>();
-        TimeColumn unique = unique();
-        for (LocalTime t : unique) {
-            times.add(t);
-        }
-        return times;
     }
 
     public boolean contains(LocalTime time) {
