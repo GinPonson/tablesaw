@@ -18,33 +18,17 @@ import it.unimi.dsi.fastutil.booleans.BooleanIterable;
 import it.unimi.dsi.fastutil.booleans.BooleanIterator;
 import it.unimi.dsi.fastutil.booleans.BooleanOpenHashSet;
 import it.unimi.dsi.fastutil.booleans.BooleanSet;
-import it.unimi.dsi.fastutil.bytes.Byte2IntMap;
-import it.unimi.dsi.fastutil.bytes.Byte2IntOpenHashMap;
-import it.unimi.dsi.fastutil.bytes.ByteArrayList;
-import it.unimi.dsi.fastutil.bytes.ByteArrays;
-import it.unimi.dsi.fastutil.bytes.ByteComparator;
-import it.unimi.dsi.fastutil.bytes.ByteIterator;
-import it.unimi.dsi.fastutil.bytes.ByteListIterator;
-import it.unimi.dsi.fastutil.bytes.ByteOpenHashSet;
-import it.unimi.dsi.fastutil.bytes.ByteSet;
+import it.unimi.dsi.fastutil.bytes.*;
 import it.unimi.dsi.fastutil.ints.IntComparator;
 import tech.tablesaw.columns.AbstractColumn;
-import tech.tablesaw.columns.Column;
 import tech.tablesaw.columns.AbstractColumnParser;
-import tech.tablesaw.columns.booleans.BooleanColumnType;
-import tech.tablesaw.columns.booleans.BooleanColumnUtils;
-import tech.tablesaw.columns.booleans.BooleanFillers;
-import tech.tablesaw.columns.booleans.BooleanFormatter;
-import tech.tablesaw.columns.booleans.BooleanMapUtils;
+import tech.tablesaw.columns.Column;
+import tech.tablesaw.columns.booleans.*;
 import tech.tablesaw.filtering.predicates.BytePredicate;
 import tech.tablesaw.selection.BitmapBackedSelection;
 import tech.tablesaw.selection.Selection;
 
-import java.util.Comparator;
-import java.util.Iterator;
-import java.util.List;
-import java.util.Map;
-import java.util.Objects;
+import java.util.*;
 import java.util.function.BiPredicate;
 import java.util.function.Function;
 import java.util.function.Predicate;
@@ -308,6 +292,17 @@ public class BooleanColumn extends AbstractColumn<Boolean> implements BooleanMap
         return append((Boolean) obj);
     }
 
+    @Override
+    public Column<Boolean> setObj(int row, Object value) {
+        if (value == null) {
+            return set(row, BooleanColumnType.MISSING_VALUE);
+        }
+        if (!(value instanceof Boolean)) {
+            throw new IllegalArgumentException("Cannot append " + value.getClass().getName() + " to BooleanColumn");
+        }
+        return set(row, (Boolean)value);
+    }
+
     public BooleanColumn append(byte b) {
         data.add(b);
         return this;
@@ -516,8 +511,9 @@ public class BooleanColumn extends AbstractColumn<Boolean> implements BooleanMap
         return this;
     }
 
-    private void set(int i, byte b) {
+    private BooleanColumn set(int i, byte b) {
         data.set(i, b);
+        return this;
     }
 
     @Override

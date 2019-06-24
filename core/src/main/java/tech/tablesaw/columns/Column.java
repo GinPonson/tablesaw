@@ -512,6 +512,8 @@ public interface Column<T> extends Iterable<T>, Comparator<T> {
 
     Column<T> appendObj(Object value);
 
+    Column<T> setObj(int row, Object value);
+
     /**
      * Appends a missing value appropriate to the column
      */

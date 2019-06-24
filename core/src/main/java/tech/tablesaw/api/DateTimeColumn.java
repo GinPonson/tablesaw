@@ -16,21 +16,11 @@ package tech.tablesaw.api;
 
 import com.google.common.base.Preconditions;
 import it.unimi.dsi.fastutil.ints.IntComparator;
-import it.unimi.dsi.fastutil.longs.LongArrayList;
-import it.unimi.dsi.fastutil.longs.LongArrays;
-import it.unimi.dsi.fastutil.longs.LongComparator;
-import it.unimi.dsi.fastutil.longs.LongIterator;
-import it.unimi.dsi.fastutil.longs.LongOpenHashSet;
-import it.unimi.dsi.fastutil.longs.LongSet;
+import it.unimi.dsi.fastutil.longs.*;
 import tech.tablesaw.columns.AbstractColumn;
 import tech.tablesaw.columns.AbstractColumnParser;
 import tech.tablesaw.columns.Column;
-import tech.tablesaw.columns.datetimes.DateTimeColumnFormatter;
-import tech.tablesaw.columns.datetimes.DateTimeColumnType;
-import tech.tablesaw.columns.datetimes.DateTimeFillers;
-import tech.tablesaw.columns.datetimes.DateTimeFilters;
-import tech.tablesaw.columns.datetimes.DateTimeMapFunctions;
-import tech.tablesaw.columns.datetimes.PackedLocalDateTime;
+import tech.tablesaw.columns.datetimes.*;
 import tech.tablesaw.selection.Selection;
 import tech.tablesaw.sorting.comparators.DescendingLongComparator;
 
@@ -39,13 +29,7 @@ import java.sql.Timestamp;
 import java.time.LocalDateTime;
 import java.time.ZoneOffset;
 import java.time.format.DateTimeFormatter;
-import java.util.ArrayList;
-import java.util.Arrays;
-import java.util.Comparator;
-import java.util.HashSet;
-import java.util.Iterator;
-import java.util.List;
-import java.util.Set;
+import java.util.*;
 import java.util.function.Consumer;
 import java.util.function.Function;
 import java.util.function.Predicate;
@@ -216,6 +200,24 @@ public class DateTimeColumn extends AbstractColumn<LocalDateTime>
             return append(timestamp.toLocalDateTime());
         }
         throw new IllegalArgumentException("Cannot append " + obj.getClass().getName() + " to DateTimeColumn");
+    }
+
+    @Override
+    public Column<LocalDateTime> setObj(int index, Object obj) {
+        if (obj == null) {
+            data.set(index, DateTimeColumnType.missingValueIndicator());
+            return this;
+        }
+        if (obj instanceof LocalDateTime) {
+            data.set(index, PackedLocalDateTime.pack((LocalDateTime) obj));
+            return this;
+        }
+        if (obj instanceof Timestamp ){
+            data.set(index, PackedLocalDateTime.pack(((Timestamp) obj).toLocalDateTime()));
+            return this;
+        }
+        throw new IllegalArgumentException("Cannot append " + obj.getClass().getName() + " to DateTimeColumn");
+
     }
 
     public int size() {

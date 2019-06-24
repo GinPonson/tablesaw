@@ -2,21 +2,15 @@ package tech.tablesaw.api;
 
 import com.google.common.base.Preconditions;
 import it.unimi.dsi.fastutil.doubles.DoubleArrayList;
-import it.unimi.dsi.fastutil.floats.FloatArrayList;
-import it.unimi.dsi.fastutil.floats.FloatArrays;
-import it.unimi.dsi.fastutil.floats.FloatComparator;
-import it.unimi.dsi.fastutil.floats.FloatListIterator;
-import it.unimi.dsi.fastutil.floats.FloatOpenHashSet;
-import it.unimi.dsi.fastutil.floats.FloatSet;
+import it.unimi.dsi.fastutil.floats.*;
 import it.unimi.dsi.fastutil.ints.IntArrayList;
 import it.unimi.dsi.fastutil.longs.LongArrayList;
 import it.unimi.dsi.fastutil.shorts.ShortArrayList;
-import tech.tablesaw.columns.Column;
 import tech.tablesaw.columns.AbstractColumnParser;
+import tech.tablesaw.columns.Column;
 import tech.tablesaw.columns.numbers.FloatColumnType;
 import tech.tablesaw.selection.Selection;
 
-import java.math.BigDecimal;
 import java.nio.ByteBuffer;
 import java.util.Comparator;
 import java.util.Iterator;
@@ -316,6 +310,20 @@ public class FloatColumn extends NumberColumn<Float> {
         }
         if (obj instanceof Number) {
             return append(((Number) obj).floatValue());
+        }
+        throw new IllegalArgumentException("Could not append " + obj.getClass());
+    }
+
+    @Override
+    public Column<Float> setObj(int i, Object obj) {
+        if (obj == null) {
+            return set(i, FloatColumnType.missingValueIndicator());
+        }
+        if (obj instanceof String) {
+            return set(i, FloatColumnType.DEFAULT_PARSER.parseFloat((String) obj));
+        }
+        if (obj instanceof Number) {
+            return set(i, ((Number) obj).floatValue());
         }
         throw new IllegalArgumentException("Could not append " + obj.getClass());
     }

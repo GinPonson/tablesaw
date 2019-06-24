@@ -14,41 +14,26 @@
 
 package tech.tablesaw.api;
 
-import static tech.tablesaw.columns.DateAndTimePredicates.isMissing;
-import static tech.tablesaw.columns.DateAndTimePredicates.isNotMissing;
+import com.google.common.base.Preconditions;
+import it.unimi.dsi.fastutil.ints.*;
+import tech.tablesaw.columns.AbstractColumn;
+import tech.tablesaw.columns.AbstractColumnParser;
+import tech.tablesaw.columns.Column;
+import tech.tablesaw.columns.times.*;
+import tech.tablesaw.selection.Selection;
+import tech.tablesaw.sorting.comparators.DescendingIntComparator;
 
 import java.nio.ByteBuffer;
 import java.time.LocalTime;
 import java.time.format.DateTimeFormatter;
-import java.util.ArrayList;
-import java.util.Arrays;
-import java.util.Comparator;
-import java.util.Iterator;
-import java.util.List;
+import java.util.*;
 import java.util.function.Consumer;
 import java.util.function.Function;
 import java.util.function.Predicate;
 import java.util.function.Supplier;
 
-import com.google.common.base.Preconditions;
-
-import it.unimi.dsi.fastutil.ints.IntArrayList;
-import it.unimi.dsi.fastutil.ints.IntArrays;
-import it.unimi.dsi.fastutil.ints.IntComparator;
-import it.unimi.dsi.fastutil.ints.IntIterator;
-import it.unimi.dsi.fastutil.ints.IntOpenHashSet;
-import it.unimi.dsi.fastutil.ints.IntSet;
-import tech.tablesaw.columns.AbstractColumn;
-import tech.tablesaw.columns.AbstractColumnParser;
-import tech.tablesaw.columns.Column;
-import tech.tablesaw.columns.times.PackedLocalTime;
-import tech.tablesaw.columns.times.TimeColumnFormatter;
-import tech.tablesaw.columns.times.TimeColumnType;
-import tech.tablesaw.columns.times.TimeFillers;
-import tech.tablesaw.columns.times.TimeFilters;
-import tech.tablesaw.columns.times.TimeMapFunctions;
-import tech.tablesaw.selection.Selection;
-import tech.tablesaw.sorting.comparators.DescendingIntComparator;
+import static tech.tablesaw.columns.DateAndTimePredicates.isMissing;
+import static tech.tablesaw.columns.DateAndTimePredicates.isNotMissing;
 
 /**
  * A column in a base table that contains float values
@@ -178,6 +163,19 @@ public class TimeColumn extends AbstractColumn<LocalTime>
             throw new IllegalArgumentException("Cannot append " + obj.getClass().getName() + " to TimeColumn");
         }
         return append((LocalTime) obj);
+    }
+
+    @Override
+    public Column<LocalTime> setObj(int row, Object obj) {
+        if (obj == null) {
+            set(row, TimeColumnType.missingValueIndicator());
+            return this;
+        }
+        if (!(obj instanceof LocalTime)) {
+            throw new IllegalArgumentException("Cannot append " + obj.getClass().getName() + " to TimeColumn");
+        }
+        set(row, PackedLocalTime.pack((LocalTime) obj));
+        return this;
     }
 
     @Override

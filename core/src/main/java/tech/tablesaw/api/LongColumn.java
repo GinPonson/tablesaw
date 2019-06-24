@@ -4,21 +4,15 @@ import com.google.common.base.Preconditions;
 import it.unimi.dsi.fastutil.doubles.DoubleArrayList;
 import it.unimi.dsi.fastutil.floats.FloatArrayList;
 import it.unimi.dsi.fastutil.ints.IntArrayList;
-import it.unimi.dsi.fastutil.longs.LongArrayList;
-import it.unimi.dsi.fastutil.longs.LongArrays;
-import it.unimi.dsi.fastutil.longs.LongComparator;
-import it.unimi.dsi.fastutil.longs.LongListIterator;
-import it.unimi.dsi.fastutil.longs.LongOpenHashSet;
-import it.unimi.dsi.fastutil.longs.LongSet;
+import it.unimi.dsi.fastutil.longs.*;
 import it.unimi.dsi.fastutil.shorts.ShortArrayList;
-import tech.tablesaw.columns.Column;
 import tech.tablesaw.columns.AbstractColumnParser;
+import tech.tablesaw.columns.Column;
 import tech.tablesaw.columns.numbers.DoubleColumnType;
 import tech.tablesaw.columns.numbers.LongColumnType;
 import tech.tablesaw.columns.numbers.NumberColumnFormatter;
 import tech.tablesaw.selection.Selection;
 
-import java.math.BigDecimal;
 import java.nio.ByteBuffer;
 import java.time.Instant;
 import java.time.ZoneOffset;
@@ -378,6 +372,20 @@ public class LongColumn extends NumberColumn<Long> implements CategoricalColumn<
         }
         if (obj instanceof Number) {
             return append(((Number) obj).longValue());
+        }
+        throw new IllegalArgumentException("Could not append " + obj.getClass());
+    }
+
+    @Override
+    public Column<Long> setObj(int i, Object obj) {
+        if (obj == null) {
+            return set(i, LongColumnType.missingValueIndicator());
+        }
+        if (obj instanceof String) {
+            return set(i, LongColumnType.DEFAULT_PARSER.parseLong((String) obj));
+        }
+        if (obj instanceof Number) {
+            return set(i, ((Number) obj).longValue());
         }
         throw new IllegalArgumentException("Could not append " + obj.getClass());
     }

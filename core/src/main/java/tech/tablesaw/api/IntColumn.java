@@ -3,22 +3,16 @@ package tech.tablesaw.api;
 import com.google.common.base.Preconditions;
 import it.unimi.dsi.fastutil.doubles.DoubleArrayList;
 import it.unimi.dsi.fastutil.floats.FloatArrayList;
-import it.unimi.dsi.fastutil.ints.IntArrayList;
-import it.unimi.dsi.fastutil.ints.IntArrays;
-import it.unimi.dsi.fastutil.ints.IntComparator;
-import it.unimi.dsi.fastutil.ints.IntListIterator;
-import it.unimi.dsi.fastutil.ints.IntOpenHashSet;
-import it.unimi.dsi.fastutil.ints.IntSet;
+import it.unimi.dsi.fastutil.ints.*;
 import it.unimi.dsi.fastutil.longs.LongArrayList;
 import it.unimi.dsi.fastutil.shorts.ShortArrayList;
-import tech.tablesaw.columns.Column;
 import tech.tablesaw.columns.AbstractColumnParser;
+import tech.tablesaw.columns.Column;
 import tech.tablesaw.columns.numbers.DoubleColumnType;
 import tech.tablesaw.columns.numbers.IntColumnType;
 import tech.tablesaw.columns.numbers.NumberColumnFormatter;
 import tech.tablesaw.selection.Selection;
 
-import java.math.BigDecimal;
 import java.nio.ByteBuffer;
 import java.util.Comparator;
 import java.util.Iterator;
@@ -344,6 +338,20 @@ public class IntColumn extends NumberColumn<Integer> implements CategoricalColum
         }
         if (obj instanceof Number) {
             return append(((Number) obj).intValue());
+        }
+        throw new IllegalArgumentException("Could not append " + obj.getClass());
+    }
+
+    @Override
+    public Column<Integer> setObj(int i, Object obj) {
+        if (obj == null) {
+            return set(i, IntColumnType.missingValueIndicator());
+        }
+        if (obj instanceof String) {
+            return set(i, IntColumnType.DEFAULT_PARSER.parseInt((String) obj));
+        }
+        if (obj instanceof Number) {
+            return set(i, ((Number) obj).intValue());
         }
         throw new IllegalArgumentException("Could not append " + obj.getClass());
     }

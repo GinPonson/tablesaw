@@ -15,34 +15,18 @@
 package tech.tablesaw.api;
 
 import com.google.common.base.Preconditions;
-import it.unimi.dsi.fastutil.ints.IntArrayList;
-import it.unimi.dsi.fastutil.ints.IntArrays;
-import it.unimi.dsi.fastutil.ints.IntComparator;
-import it.unimi.dsi.fastutil.ints.IntIterator;
-import it.unimi.dsi.fastutil.ints.IntOpenHashSet;
-import it.unimi.dsi.fastutil.ints.IntSet;
+import it.unimi.dsi.fastutil.ints.*;
 import tech.tablesaw.columns.AbstractColumn;
 import tech.tablesaw.columns.AbstractColumnParser;
 import tech.tablesaw.columns.Column;
-import tech.tablesaw.columns.dates.DateColumnFormatter;
-import tech.tablesaw.columns.dates.DateColumnType;
-import tech.tablesaw.columns.dates.DateFillers;
-import tech.tablesaw.columns.dates.DateFilters;
-import tech.tablesaw.columns.dates.DateMapFunctions;
-import tech.tablesaw.columns.dates.PackedLocalDate;
+import tech.tablesaw.columns.dates.*;
 import tech.tablesaw.selection.Selection;
 import tech.tablesaw.sorting.comparators.DescendingIntComparator;
 
 import java.nio.ByteBuffer;
 import java.time.LocalDate;
 import java.time.format.DateTimeFormatter;
-import java.util.ArrayList;
-import java.util.Arrays;
-import java.util.Comparator;
-import java.util.HashSet;
-import java.util.Iterator;
-import java.util.List;
-import java.util.Set;
+import java.util.*;
 import java.util.function.Consumer;
 import java.util.function.Function;
 import java.util.function.Predicate;
@@ -357,6 +341,23 @@ public class DateColumn extends AbstractColumn<LocalDate> implements DateFilters
         }
         if (obj instanceof LocalDate) {
             return append((LocalDate) obj);
+        }
+        throw new IllegalArgumentException("Cannot append " + obj.getClass().getName() + " to DateColumn");
+    }
+
+    @Override
+    public Column<LocalDate> setObj(int index, Object obj) {
+        if (obj == null) {
+            data.set(index, DateColumnType.missingValueIndicator());
+            return this;
+        }
+        if (obj instanceof java.sql.Date) {
+            data.set(index, PackedLocalDate.pack(((java.sql.Date) obj).toLocalDate()));
+            return this;
+        }
+        if (obj instanceof LocalDate) {
+            data.set(index, PackedLocalDate.pack((LocalDate) obj));
+            return this;
         }
         throw new IllegalArgumentException("Cannot append " + obj.getClass().getName() + " to DateColumn");
     }

@@ -417,6 +417,21 @@ public class DoubleColumn extends NumberColumn<Double> implements NumberFillers<
     }
 
     @Override
+    public Column<Double> setObj(int i, Object obj) {
+        if (obj == null) {
+            return set(i, DoubleColumnType.missingValueIndicator());
+        }
+        if (obj instanceof String) {
+            return set(i, DoubleColumnType.DEFAULT_PARSER.parseDouble((String) obj));
+        }
+        if (obj instanceof Number) {
+            return set(i, ((Number) obj).doubleValue());
+        }
+        throw new IllegalArgumentException("Could not append " + obj.getClass());
+
+    }
+
+    @Override
     public DoubleColumn appendCell(final String value) {
         try {
             return append(DoubleColumnType.DEFAULT_PARSER.parseDouble(value));

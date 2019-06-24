@@ -4,12 +4,7 @@ import com.google.common.base.Preconditions;
 import it.unimi.dsi.fastutil.doubles.DoubleArrayList;
 import it.unimi.dsi.fastutil.floats.FloatArrayList;
 import it.unimi.dsi.fastutil.longs.LongArrayList;
-import it.unimi.dsi.fastutil.shorts.ShortArrayList;
-import it.unimi.dsi.fastutil.shorts.ShortArrays;
-import it.unimi.dsi.fastutil.shorts.ShortComparator;
-import it.unimi.dsi.fastutil.shorts.ShortListIterator;
-import it.unimi.dsi.fastutil.shorts.ShortOpenHashSet;
-import it.unimi.dsi.fastutil.shorts.ShortSet;
+import it.unimi.dsi.fastutil.shorts.*;
 import tech.tablesaw.columns.AbstractColumnParser;
 import tech.tablesaw.columns.Column;
 import tech.tablesaw.columns.numbers.DoubleColumnType;
@@ -338,6 +333,17 @@ public class ShortColumn extends NumberColumn<Short> implements CategoricalColum
         }
         if (obj instanceof Short) {
             return append((short) obj);
+        }
+        throw new IllegalArgumentException("Could not append " + obj.getClass());
+    }
+
+    @Override
+    public Column<Short> setObj(int i, Object obj) {
+        if (obj == null) {
+            return set(i, ShortColumnType.missingValueIndicator());
+        }
+        if (obj instanceof Short) {
+            return set(i, (short) obj);
         }
         throw new IllegalArgumentException("Could not append " + obj.getClass());
     }

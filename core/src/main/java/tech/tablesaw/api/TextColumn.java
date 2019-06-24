@@ -20,21 +20,11 @@ import it.unimi.dsi.fastutil.ints.IntComparator;
 import tech.tablesaw.columns.AbstractColumn;
 import tech.tablesaw.columns.AbstractColumnParser;
 import tech.tablesaw.columns.Column;
-import tech.tablesaw.columns.strings.StringColumnFormatter;
-import tech.tablesaw.columns.strings.StringFilters;
-import tech.tablesaw.columns.strings.StringMapFunctions;
-import tech.tablesaw.columns.strings.StringReduceUtils;
-import tech.tablesaw.columns.strings.TextColumnType;
+import tech.tablesaw.columns.strings.*;
 import tech.tablesaw.selection.BitmapBackedSelection;
 import tech.tablesaw.selection.Selection;
 
-import java.util.ArrayList;
-import java.util.Collection;
-import java.util.Comparator;
-import java.util.HashSet;
-import java.util.Iterator;
-import java.util.List;
-import java.util.Set;
+import java.util.*;
 
 /**
  * A column that contains String values. They are assumed to be free-form text. For categorical data, use stringColumn
@@ -467,6 +457,17 @@ public class TextColumn extends AbstractColumn<String>
             throw new IllegalArgumentException("Cannot append " + obj.getClass().getName() + " to TextColumn");
         }
         return append((String) obj);
+    }
+
+    @Override
+    public Column<String> setObj(int row, Object obj) {
+        if (obj == null) {
+            return set(row, TextColumnType.missingValueIndicator());
+        }
+        if (!(obj instanceof String)) {
+            throw new IllegalArgumentException("Cannot append " + obj.getClass().getName() + " to TextColumn");
+        }
+        return set(row, (String) obj);
     }
 
     @Override

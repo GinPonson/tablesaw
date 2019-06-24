@@ -15,29 +15,15 @@
 package tech.tablesaw.api;
 
 import com.google.common.base.Preconditions;
-
 import it.unimi.dsi.fastutil.ints.IntComparator;
 import tech.tablesaw.columns.AbstractColumn;
 import tech.tablesaw.columns.AbstractColumnParser;
 import tech.tablesaw.columns.Column;
-import tech.tablesaw.columns.strings.ByteDictionaryMap;
-import tech.tablesaw.columns.strings.DictionaryMap;
-import tech.tablesaw.columns.strings.NoKeysAvailableException;
-import tech.tablesaw.columns.strings.StringColumnFormatter;
-import tech.tablesaw.columns.strings.StringColumnType;
-import tech.tablesaw.columns.strings.StringFilters;
-import tech.tablesaw.columns.strings.StringMapFunctions;
-import tech.tablesaw.columns.strings.StringReduceUtils;
+import tech.tablesaw.columns.strings.*;
 import tech.tablesaw.selection.BitmapBackedSelection;
 import tech.tablesaw.selection.Selection;
 
-import java.util.ArrayList;
-import java.util.Arrays;
-import java.util.Collection;
-import java.util.Comparator;
-import java.util.Iterator;
-import java.util.List;
-import java.util.Set;
+import java.util.*;
 import java.util.function.Function;
 import java.util.function.Predicate;
 
@@ -505,6 +491,17 @@ public class StringColumn extends AbstractColumn<String>
             throw new IllegalArgumentException("Cannot append " + obj.getClass().getName() + " to StringColumn");
         }
         return append((String) obj);
+    }
+
+    @Override
+    public Column<String> setObj(int rowIndex, Object stringValue) {
+        if (stringValue == null) {
+            return set(rowIndex, StringColumnType.missingValueIndicator());
+        }
+        if (!(stringValue instanceof String)) {
+            throw new IllegalArgumentException("Cannot append " + stringValue.getClass().getName() + " to StringColumn");
+        }
+        return set(rowIndex, (String)stringValue);
     }
 
     @Override
