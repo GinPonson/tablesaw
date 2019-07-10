@@ -220,6 +220,23 @@ public class DateTimeColumn extends AbstractColumn<LocalDateTime>
 
     }
 
+    @Override
+    public int compareCell(int row, Object obj) {
+        if (obj == null) {
+            return Long.compare(getLongInternal(row), DateTimeColumnType.missingValueIndicator());
+        }
+        if (obj instanceof String) {
+            return compare(get(row), DateTimeColumnType.DEFAULT_PARSER.parse((String) obj));
+        }
+        if (obj instanceof LocalDateTime) {
+            return Long.compare(getLongInternal(row), PackedLocalDateTime.pack((LocalDateTime) obj));
+        }
+        if (obj instanceof Timestamp ){
+            return Long.compare(getLongInternal(row), PackedLocalDateTime.pack(((Timestamp) obj).toLocalDateTime()));
+        }
+        throw new IllegalArgumentException("Cannot compare " + obj.getClass().getName() + " to DateTimeColumn");
+    }
+
     public int size() {
         return data.size();
     }

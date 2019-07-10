@@ -432,6 +432,20 @@ public class DoubleColumn extends NumberColumn<Double> implements NumberFillers<
     }
 
     @Override
+    public int compareCell(int row, Object obj) {
+        if (obj == null) {
+            return compare(get(row), DoubleColumnType.missingValueIndicator());
+        }
+        if (obj instanceof String) {
+            return compare(get(row), DoubleColumnType.DEFAULT_PARSER.parseDouble((String) obj));
+        }
+        if (obj instanceof Number) {
+            return compare(get(row), ((Number) obj).doubleValue());
+        }
+        throw new IllegalArgumentException("Could not compare " + obj.getClass());
+    }
+
+    @Override
     public DoubleColumn appendCell(final String value) {
         try {
             return append(DoubleColumnType.DEFAULT_PARSER.parseDouble(value));

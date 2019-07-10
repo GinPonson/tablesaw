@@ -329,6 +329,20 @@ public class FloatColumn extends NumberColumn<Float> {
     }
 
     @Override
+    public int compareCell(int row, Object obj) {
+        if (obj == null) {
+            return compare(get(row), FloatColumnType.missingValueIndicator());
+        }
+        if (obj instanceof String) {
+            return compare(get(row), FloatColumnType.DEFAULT_PARSER.parseFloat((String) obj));
+        }
+        if (obj instanceof Number) {
+            return compare(get(row), ((Number) obj).floatValue());
+        }
+        throw new IllegalArgumentException("Could not compare " + obj.getClass());
+    }
+
+    @Override
     public FloatColumn appendCell(final String value) {
         try {
             return append(FloatColumnType.DEFAULT_PARSER.parseFloat(value));

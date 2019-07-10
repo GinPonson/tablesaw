@@ -357,6 +357,20 @@ public class IntColumn extends NumberColumn<Integer> implements CategoricalColum
     }
 
     @Override
+    public int compareCell(int row, Object obj) {
+        if (obj == null) {
+            return compare(row, IntColumnType.missingValueIndicator());
+        }
+        if (obj instanceof String) {
+            return compare(get(row), IntColumnType.DEFAULT_PARSER.parseInt((String) obj));
+        }
+        if (obj instanceof Number) {
+            return compare(row, ((Number) obj).intValue());
+        }
+        throw new IllegalArgumentException("Could not compare " + obj.getClass());
+    }
+
+    @Override
     public IntColumn appendCell(final String value) {
         try {
             return append(IntColumnType.DEFAULT_PARSER.parseInt(value));

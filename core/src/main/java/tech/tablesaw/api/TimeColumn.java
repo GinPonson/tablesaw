@@ -171,11 +171,30 @@ public class TimeColumn extends AbstractColumn<LocalTime>
             set(row, TimeColumnType.missingValueIndicator());
             return this;
         }
-        if (!(obj instanceof LocalTime)) {
-            throw new IllegalArgumentException("Cannot append " + obj.getClass().getName() + " to TimeColumn");
+        if (obj instanceof String) {
+            set(row, TimeColumnType.DEFAULT_PARSER.parse((String)obj));
+            return this;
         }
-        set(row, PackedLocalTime.pack((LocalTime) obj));
-        return this;
+        if (obj instanceof LocalTime) {
+            set(row, PackedLocalTime.pack((LocalTime) obj));
+            return this;
+        }
+        throw new IllegalArgumentException("Cannot append " + obj.getClass().getName() + " to TimeColumn");
+    }
+
+    @Override
+    public int compareCell(int row, Object obj) {
+        if (obj == null) {
+            return Integer.compare(getIntInternal(row), TimeColumnType.missingValueIndicator());
+        }
+        if (obj instanceof String) {
+            return compare(get(row), TimeColumnType.DEFAULT_PARSER.parse((String)obj));
+        }
+        if (obj instanceof LocalTime) {
+            return compare(get(row), (LocalTime) obj);
+        }
+        throw new IllegalArgumentException("Could not compare " + obj.getClass());
+
     }
 
     @Override

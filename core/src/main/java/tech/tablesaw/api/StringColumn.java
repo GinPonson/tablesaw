@@ -498,10 +498,21 @@ public class StringColumn extends AbstractColumn<String>
         if (stringValue == null) {
             return set(rowIndex, StringColumnType.missingValueIndicator());
         }
-        if (!(stringValue instanceof String)) {
-            throw new IllegalArgumentException("Cannot append " + stringValue.getClass().getName() + " to StringColumn");
+        if (stringValue instanceof String) {
+            return set(rowIndex, (String) stringValue);
         }
-        return set(rowIndex, (String)stringValue);
+        throw new IllegalArgumentException("Cannot append " + stringValue.getClass().getName() + " to StringColumn");
+    }
+
+    @Override
+    public int compareCell(int row, Object obj) {
+        if (obj == null) {
+            return compare(get(row), StringColumnType.missingValueIndicator());
+        }
+        if (obj instanceof String) {
+            return compare(get(row), (String) obj);
+        }
+        throw new IllegalArgumentException("Could not compare " + obj.getClass());
     }
 
     @Override

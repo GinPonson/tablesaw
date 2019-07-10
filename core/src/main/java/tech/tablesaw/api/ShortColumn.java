@@ -342,10 +342,27 @@ public class ShortColumn extends NumberColumn<Short> implements CategoricalColum
         if (obj == null) {
             return set(i, ShortColumnType.missingValueIndicator());
         }
+        if (obj instanceof String) {
+            return set(i, ShortColumnType.DEFAULT_PARSER.parseShort((String) obj));
+        }
         if (obj instanceof Short) {
             return set(i, (short) obj);
         }
         throw new IllegalArgumentException("Could not append " + obj.getClass());
+    }
+
+    @Override
+    public int compareCell(int row, Object obj) {
+        if (obj == null) {
+            return compare(get(row), ShortColumnType.missingValueIndicator());
+        }
+        if (obj instanceof String) {
+            return compare(get(row), ShortColumnType.DEFAULT_PARSER.parseShort((String) obj));
+        }
+        if (obj instanceof Short) {
+            return compare(get(row), (short) obj);
+        }
+        throw new IllegalArgumentException("Could not compare " + obj.getClass());
     }
 
     @Override

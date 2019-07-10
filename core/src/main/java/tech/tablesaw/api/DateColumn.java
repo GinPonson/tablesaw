@@ -363,6 +363,23 @@ public class DateColumn extends AbstractColumn<LocalDate> implements DateFilters
     }
 
     @Override
+    public int compareCell(int row, Object obj) {
+        if (obj == null) {
+            return Integer.compare(getIntInternal(row), DateColumnType.missingValueIndicator());
+        }
+        if (obj instanceof String) {
+            return compare(get(row), DateColumnType.DEFAULT_PARSER.parse((String) obj));
+        }
+        if (obj instanceof java.sql.Date) {
+            return Integer.compare(getIntInternal(row), PackedLocalDate.pack(((java.sql.Date) obj).toLocalDate()));
+        }
+        if (obj instanceof LocalDate) {
+            return Integer.compare(getIntInternal(row), PackedLocalDate.pack((LocalDate) obj));
+        }
+        throw new IllegalArgumentException("Cannot compare " + obj.getClass().getName() + " to DateColumn");
+    }
+
+    @Override
     public DateColumn appendCell(String string) {
         return appendInternal(PackedLocalDate.pack(DateColumnType.DEFAULT_PARSER.parse(string)));
     }

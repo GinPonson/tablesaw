@@ -391,6 +391,20 @@ public class LongColumn extends NumberColumn<Long> implements CategoricalColumn<
     }
 
     @Override
+    public int compareCell(int row, Object obj) {
+        if (obj == null) {
+            return compare(get(row), LongColumnType.missingValueIndicator());
+        }
+        if (obj instanceof String) {
+            return compare(get(row), LongColumnType.DEFAULT_PARSER.parseLong((String) obj));
+        }
+        if (obj instanceof Number) {
+            return compare(get(row), ((Number) obj).longValue());
+        }
+        throw new IllegalArgumentException("Could not compare " + obj.getClass());
+    }
+
+    @Override
     public LongColumn appendCell(final String value) {
         try {
             return append(LongColumnType.DEFAULT_PARSER.parseLong(value));

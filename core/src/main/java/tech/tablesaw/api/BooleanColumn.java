@@ -286,10 +286,13 @@ public class BooleanColumn extends AbstractColumn<Boolean> implements BooleanMap
         if (obj == null) {
             return appendMissing();
         }
-        if (!(obj instanceof Boolean)) {
-            throw new IllegalArgumentException("Cannot append " + obj.getClass().getName() + " to BooleanColumn");
+        if (obj instanceof String) {
+            return append(BooleanColumnType.DEFAULT_PARSER.parse((String) obj));
         }
-        return append((Boolean) obj);
+        if (obj instanceof Boolean) {
+            return append((Boolean) obj);
+        }
+        throw new IllegalArgumentException("Cannot append " + obj.getClass().getName() + " to BooleanColumn");
     }
 
     @Override
@@ -297,10 +300,27 @@ public class BooleanColumn extends AbstractColumn<Boolean> implements BooleanMap
         if (value == null) {
             return set(row, BooleanColumnType.MISSING_VALUE);
         }
-        if (!(value instanceof Boolean)) {
-            throw new IllegalArgumentException("Cannot append " + value.getClass().getName() + " to BooleanColumn");
+        if (value instanceof String) {
+            return set(row, BooleanColumnType.DEFAULT_PARSER.parse((String) value));
         }
-        return set(row, (Boolean)value);
+        if (value instanceof Boolean) {
+            return set(row, (Boolean)value);
+        }
+        throw new IllegalArgumentException("Cannot append " + value.getClass().getName() + " to BooleanColumn");
+    }
+
+    @Override
+    public int compareCell(int row, Object obj) {
+        if (obj == null) {
+            return Byte.compare(getByte(row), BooleanColumnType.missingValueIndicator());
+        }
+        if (obj instanceof String) {
+            return compare(get(row), BooleanColumnType.DEFAULT_PARSER.parse((String) obj));
+        }
+        if (obj instanceof Boolean) {
+            return compare(get(row), (Boolean) obj);
+        }
+        throw new IllegalArgumentException("Cannot compare " + obj.getClass().getName() + " to BooleanColumn");
     }
 
     public BooleanColumn append(byte b) {

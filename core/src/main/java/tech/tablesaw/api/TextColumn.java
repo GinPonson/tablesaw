@@ -464,10 +464,21 @@ public class TextColumn extends AbstractColumn<String>
         if (obj == null) {
             return set(row, TextColumnType.missingValueIndicator());
         }
-        if (!(obj instanceof String)) {
-            throw new IllegalArgumentException("Cannot append " + obj.getClass().getName() + " to TextColumn");
+        if (obj instanceof String) {
+            return set(row, (String) obj);
         }
-        return set(row, (String) obj);
+        throw new IllegalArgumentException("Cannot append " + obj.getClass().getName() + " to TextColumn");
+    }
+
+    @Override
+    public int compareCell(int row, Object obj) {
+        if (obj == null) {
+            return compare(get(row), TextColumnType.missingValueIndicator());
+        }
+        if (obj instanceof String) {
+            return compare(get(row), (String) obj);
+        }
+        throw new IllegalArgumentException("Could not compare " + obj.getClass());
     }
 
     @Override
