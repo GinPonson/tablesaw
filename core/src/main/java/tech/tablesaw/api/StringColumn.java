@@ -487,10 +487,7 @@ public class StringColumn extends AbstractColumn<String>
         if (obj == null) {
             return appendMissing();
         }
-        if (!(obj instanceof String)) {
-            throw new IllegalArgumentException("Cannot append " + obj.getClass().getName() + " to StringColumn");
-        }
-        return append((String) obj);
+        return append(obj.toString());
     }
 
     @Override
@@ -498,10 +495,7 @@ public class StringColumn extends AbstractColumn<String>
         if (stringValue == null) {
             return set(rowIndex, StringColumnType.missingValueIndicator());
         }
-        if (stringValue instanceof String) {
-            return set(rowIndex, (String) stringValue);
-        }
-        throw new IllegalArgumentException("Cannot append " + stringValue.getClass().getName() + " to StringColumn");
+        return set(rowIndex, stringValue.toString());
     }
 
     @Override
@@ -509,10 +503,7 @@ public class StringColumn extends AbstractColumn<String>
         if (obj == null) {
             return compare(get(row), StringColumnType.missingValueIndicator());
         }
-        if (obj instanceof String) {
-            return compare(get(row), (String) obj);
-        }
-        throw new IllegalArgumentException("Could not compare " + obj.getClass());
+        return compare(get(row), obj.toString());
     }
 
     @Override
