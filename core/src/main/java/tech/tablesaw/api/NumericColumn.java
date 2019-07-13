@@ -28,7 +28,7 @@ import java.util.function.DoublePredicate;
 import static tech.tablesaw.columns.numbers.NumberPredicates.isMissing;
 import static tech.tablesaw.columns.numbers.NumberPredicates.isNotMissing;
 
-public interface NumericColumn<T> extends Column<T>, NumberMapFunctions, NumberFilters {
+public interface NumericColumn<T> extends CategoricalColumn<T>, NumberMapFunctions, NumberFilters {
 
     @Override
     default boolean isEmpty() {
