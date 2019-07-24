@@ -331,8 +331,14 @@ public class ShortColumn extends NumberColumn<Short> implements CategoricalColum
         if (obj == null) {
             return appendMissing();
         }
+        if (obj instanceof String) {
+            return append(ShortColumnType.DEFAULT_PARSER.parseShort((String) obj));
+        }
         if (obj instanceof Short) {
             return append((short) obj);
+        }
+        if (obj instanceof Number) {
+            return append(((Number) obj).shortValue());
         }
         throw new IllegalArgumentException("Could not append " + obj.getClass());
     }
@@ -348,6 +354,9 @@ public class ShortColumn extends NumberColumn<Short> implements CategoricalColum
         if (obj instanceof Short) {
             return set(i, (short) obj);
         }
+        if (obj instanceof Number) {
+            return append(((Number) obj).shortValue());
+        }
         throw new IllegalArgumentException("Could not append " + obj.getClass());
     }
 
@@ -361,6 +370,9 @@ public class ShortColumn extends NumberColumn<Short> implements CategoricalColum
         }
         if (obj instanceof Short) {
             return compare(get(row), (short) obj);
+        }
+        if (obj instanceof Number) {
+            return compare(get(row), ((Number) obj).shortValue());
         }
         throw new IllegalArgumentException("Could not compare " + obj.getClass());
     }
